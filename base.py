@@ -102,7 +102,7 @@ class BaseScanner(tk.Frame):
             exchange_configs = {
                 'CoinEx': ccxt.coinex,
                 'BingX': ccxt.bingx,
-                'Okex': ccxt.okex,
+                'okx': ccxt.okx,
                 'Binance': ccxt.binance,
                 'Kucoin': ccxt.kucoin,
                 'Bybit': ccxt.bybit
@@ -121,7 +121,7 @@ class BaseScanner(tk.Frame):
                 }
             }
 
-            if exchange_name in ['Okex', 'Kucoin']:
+            if exchange_name in ['okx', 'Kucoin']:
                 config['password'] = self.phrase
 
             self.binance = exchange_configs[exchange_name](config)

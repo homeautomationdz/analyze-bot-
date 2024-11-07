@@ -20,6 +20,9 @@ class ScannerGUI(MarketScanner):
         super().__init__(master)
         self.db_connect = "connection.db"
         self.db_signals = "Signals.db"
+        
+        # Create tables first
+        self.sql_operations('create', self.db_connect, 'userinfo')
         self.sql_operations('create', self.db_signals, 'Signals')
         
         self.tel_id = None
@@ -108,7 +111,7 @@ class ScannerGUI(MarketScanner):
                 tel_id = data[4]
                 bot_token = data[5]
 
-                if self.con(file_name='connection.db'):
+                if self.con('connection.db'):  # Added file_name argument here
                     self.api_key = str(private_key)
                     self.secret_key = str(secret_key)
                     self.phrase = phraseword
@@ -142,7 +145,7 @@ class ScannerGUI(MarketScanner):
                     except Exception as e:
                         print(f"Error destroying auth window: {e}")
 
-                if self.con():
+                if self.con('connection.db'):  # Added file_name argument here
                     self.api_key = str(private_key)
                     self.secret_key = str(secret_key)
                     self.phrase = phraseword
@@ -167,6 +170,7 @@ class ScannerGUI(MarketScanner):
         finally:
             if db1:
                 db1.close()
+
 
     def quittheapp(self):
         if self.auth:
@@ -199,7 +203,7 @@ class ScannerGUI(MarketScanner):
         self.option_list.grid(row=2, column=0)
 
         # Exchange selection
-        list_manu_ex = ['Binance', 'CoinEx', 'Okex', 'BingX']
+        list_manu_ex = ['Binance', 'CoinEx', 'okx', 'BingX']
         self.choose_listex = tk.StringVar(self.master)
         self.choose_listex.set('Binance')
         self.option_listex = tk.OptionMenu(self.master, self.choose_listex, *list_manu_ex)

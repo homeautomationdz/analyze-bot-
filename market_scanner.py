@@ -351,7 +351,3 @@ class MarketScanner(BaseScanner):
                 df.loc[df.index[i], 'Trend'] = 'up'
             elif all(df[ma1].iloc[i-length:i] < df[ma2].iloc[i-length:i]):
                 df.loc[df.index[i], 'Trend'] = 'down'
-    def analyze_weekly_volume_levels(self, market, lookback_months=6):
-        try:
-            # Fetch weekly data
-            weekly_data = self.fetch

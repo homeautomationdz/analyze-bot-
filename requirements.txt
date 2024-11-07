@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+websockets
+ccxt
+pandas
+ta-lib
+requests
+sqlalchemy
+python-jose[cryptography]
