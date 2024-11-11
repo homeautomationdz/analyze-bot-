@@ -13,6 +13,8 @@ import pandas as pd
 from tkinter import messagebox 
 from tkinter import messagebox, ttk
 from market_scanner import MarketScanner
+import threading
+import logging
 
 
 class ScannerGUI(MarketScanner):
@@ -243,16 +245,48 @@ class ScannerGUI(MarketScanner):
         self.status_label = tk.Label(self.master, text="Scanner Status: Stopped",
                                    font=('Arial', 10), fg='red')
         self.status_label.grid(row=3, column=0, columnspan=4)
-
     def start_scanning(self):
         if not self.scanning:
-            if self.create_binance_object():
-                self.scanning = True
-                self.status_label.config(text="Scanner Status: Running", fg='green')
-                self.run(self.scan_for_signals)
-                self.send_telegram_update("🚀 Market Scanner Started\nMonitoring markets for signals...")
-            else:
-                self.status_label.config(text="Scanner Status: Error", fg='red')
+            # Initialize exchange connection
+            self.binance = ccxt.binance({
+                'enableRateLimit': True,
+                'options': {'defaultType': 'spot'}
+            })
+            
+            self.scanning = True
+            self.status_label.config(text="Scanner Status: Running", fg='green')
+            
+            # Start scanning thread
+            threading.Thread(target=self.scan_for_signals, daemon=True).start()
+            
+            # Notify start
+            self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
+
+    def scan_for_signals(self):
+        while self.scanning:
+            try:
+                # Get market list
+                markets = self.selected_markets if self.user_choice.get() == 1 else self.change(self.choose_list.get())
+                
+                # Process each market
+                for market in markets:
+                    if not self.scanning:
+                        break
+                        
+                    timeframe = self.choose_time.get()
+                    df = self.fetch_market_data(market, timeframe)
+                    
+                    if df is not None and not df.empty:
+                        signals = self.generate_signals(df)
+                        if signals:
+                            self.process_signals(market, timeframe, signals)
+                            
+                    time.sleep(0.5)
+
+            except Exception as e:
+                print(f"Scanning error: {e}")
+                time.sleep(5)
+
 
     def stop_scanning(self):
         self.scanning = False
@@ -260,7 +294,29 @@ class ScannerGUI(MarketScanner):
         self.send_telegram_update("⏹️ Market Scanner Stopped")
 
     def user_choicelist(self):
-        self.binance = self.create_binance_object()
+        # Set up exchange with proper API configuration
+        exchange_config = {
+            'apiKey': self.api_key,
+            'secret': self.secret_key,
+            'enableRateLimit': True,
+            'options': {
+                'defaultType': 'spot',
+                'adjustForTimeDifference': True,
+                'recvWindow': 5000
+            }
+        }
+        
+        # Create exchange instance with public API access
+        self.binance = ccxt.binance({
+            'enableRateLimit': True,
+            'options': {'defaultType': 'spot'}
+        })
+        
+        # Fetch market data using public endpoints
+        def tickers(self):
+            markets = self.binance.load_markets()
+            return [market for market in markets.keys() if market.endswith('/USDT')]
+        
         total_list = self.tickers()
         insi = MarketApp(self, total_list)
         insi.run_choiceApp()
@@ -282,25 +338,6 @@ class ScannerGUI(MarketScanner):
         sorted_markets = [symbol[0] for symbol in sorted_symbols]
         return sorted_markets
 
-    def scan_for_signals(self):
-        while self.scanning:
-            try:
-                if self.user_choice.get() == 0:
-                    markets = self.change(self.choose_list.get())
-                else:
-                    markets = self.selected_markets
-
-                for market in markets:
-                    if not self.scanning:
-                        break
-                    
-                    timeframe = self.choose_time.get()
-                    self.analyze_market(market, timeframe)
-                    time.sleep(0.5)  # Rate limiting
-
-            except Exception as e:
-                self.logger.error(f"Scanning error: {e}")
-                time.sleep(5)
 
     def change(self, param=None):
         asset = 'USDT'

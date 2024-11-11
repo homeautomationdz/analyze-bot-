@@ -7,3 +7,8 @@ ta-lib
 requests
 sqlalchemy
 python-jose[cryptography]
+API Key: y90BdywNvKze8YTucq2nAV0EJ29gy6INt6AMRV34I3cwQLPZuhNVcz4pHAH1YkIb
+
+Secret Key: FQX6DfHPgAq253gs5T2drOyuDMfnNkM7RNsFeuZVxMdbyCDxUYP5l0UPXsWXVAki
+
+Back
