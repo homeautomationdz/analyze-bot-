@@ -11,9 +11,8 @@ from market_app import MarketApp
 import talib
 import pandas as pd
 from tkinter import messagebox 
-from tkinter import messagebox, ttk
 from market_scanner import MarketScanner
-
+from vsa_analyzer import VSAAnalyzer
 
 class ScannerGUI(MarketScanner):
     def __init__(self, master=None):
@@ -21,12 +20,11 @@ class ScannerGUI(MarketScanner):
         self.db_connect = "connection.db"
         self.db_signals = "Signals.db"
         
-        # Create tables first
         self.sql_operations('create', self.db_connect, 'userinfo')
         self.sql_operations('create', self.db_signals, 'Signals')
         
         self.tel_id = None
-        self.bot_tocken = None 
+        self.bot_token = None 
         self.scanning = False
         self.filtered_list = []
         self.selected_markets = []
@@ -36,21 +34,6 @@ class ScannerGUI(MarketScanner):
         }
         self.setup_gui()
         self.auth = self.user_auth(self.db_connect, "userinfo")
-
-    def send_telegram_update(self, message):
-        if self.tel_id and self.bot_token:
-            try:
-                url = f'https://api.telegram.org/bot{self.bot_token}/sendMessage'
-                params = {
-                    'chat_id': self.tel_id,
-                    'text': message,
-                    'parse_mode': 'HTML'
-                }
-                response = requests.post(url, params=params)
-                if not response.ok:
-                    self.logger.error(f"Telegram API error: {response.text}")
-            except Exception as e:
-                self.logger.error(f"Telegram error: {e}")
 
     def user_auth(self, file_name, table_name):
         self.auth = tk.Toplevel()
@@ -209,7 +192,6 @@ class ScannerGUI(MarketScanner):
         self.option_listex = tk.OptionMenu(self.master, self.choose_listex, *list_manu_ex)
         self.option_listex.configure(font="Arial,10", state='normal')
         self.option_listex.grid(row=2, column=2)
-
         # Control buttons
         self.start_button = tk.Button(self.master, text='Start Scanning',
                                     background='green', font=('Arial', 10),
@@ -252,7 +234,6 @@ class ScannerGUI(MarketScanner):
         self.scanning = False
         self.status_label.config(text="Scanner Status: Stopped", fg='red')
         self.send_telegram_update("⏹️ Market Scanner Stopped")
-
     def user_choicelist(self):
         self.binance = self.create_binance_object()
         total_list = self.tickers()
@@ -370,57 +351,43 @@ class ScannerGUI(MarketScanner):
             self.send_telegram_update(message)
             
 
-
     def analyze_market(self, market, timeframe):
         try:
             df = self.fetch_market_data(market, timeframe)
             if df is not None and not df.empty:
-                # Calculate technical indicators
-                df['rsi'] = talib.RSI(df['close'])
-                df['macd'], df['macd_signal'], df['macd_hist'] = talib.MACD(df['close'])
-                df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
-                df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
-                
-                # Volume analysis
-                volume_profile = self.analyze_volume_profile(df)
-                
-                # Generate signals
+                # Regular technical analysis
                 signals = self.generate_signals(df)
                 
-                # Add volume context to signals
-                if volume_profile and signals:
-                    for signal in signals:
-                        signal['volume_context'] = volume_profile['volume_trend']
-                        signal['vwap'] = volume_profile['vwap']
+                # VSA analysis
+                vsa_analyzer = VSAAnalyzer()
+                vsa_df = vsa_analyzer.analyze_candles(df)
                 
-                if signals:
-                    for signal in signals:
-                        # Enhanced message with more context
+                # Support volume analysis
+                support_signals = vsa_analyzer.analyze_support_volume(vsa_df)
+                
+                if support_signals:
+                    for signal in support_signals:
                         message = (
-                            f"🔔 Signal Alert!\n"
+                            f"🔔 High Volume Support Rejection!\n"
                             f"Market: {market}\n"
-                            f"Signal: {signal['type']}\n"
+                            f"Timeframe: {timeframe}\n"
                             f"Price: {signal['price']}\n"
-                            f"VWAP: {signal.get('vwap', 'N/A')}\n"
-                            f"Volume Trend: {signal.get('volume_context', 'N/A')}\n"
-                            f"RSI: {df['rsi'].iloc[-1]:.2f}\n"
-                            f"Timeframe: {timeframe}"
+                            f"Support Level: {signal['support_level']}\n"
+                            f"Volume Spike: {signal['volume']:.2f}\n"
+                            f"Wick Ratio: {signal['wick_ratio']:.2%}"
                         )
                         self.send_telegram_update(message)
                         
-                        # Store enhanced signal data
-                        self.sql_operations('insert', self.db_signals, 'Signals',
-                                        market=market,
-                                        timeframe=timeframe,
-                                        signal_type=signal['type'],
-                                        price=signal['price'],
-                                        volume_trend=signal.get('volume_context', ''),
-                                        vwap=signal.get('vwap', 0.0),
-                                        rsi=df['rsi'].iloc[-1],
-                                        timestamp=str(datetime.now()))
-                        
+                        fig = vsa_analyzer.plot_vsa_analysis(vsa_df, market)
+                        if fig:
+                            self.send_chart_to_telegram(market, timeframe, fig)
+                
+                if signals or (vsa_df is not None and vsa_df['VSA_Pattern'].iloc[-1] != 'Neutral'):
+                    self.process_signals(market, timeframe, signals)
+                    
         except Exception as e:
             self.logger.error(f"Error analyzing market {market}: {e}")
+
 
     def fetch_market_data(self, market, timeframe):
         try:

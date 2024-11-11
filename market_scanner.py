@@ -4,6 +4,9 @@ import talib
 from datetime import datetime
 import time
 from base import BaseScanner
+from vsa_analyzer import VSAAnalyzer
+import requests
+import matplotlib.pyplot as plt
 
 class MarketScanner(BaseScanner):
     def __init__(self, master=None):
@@ -45,6 +48,8 @@ class MarketScanner(BaseScanner):
                     df = self.fetch_market_data(market, timeframe)
 
                     if df is not None and not df.empty:
+                        
+                        correlated_signals = self.scan_correlated_markets(market)
                         signals = self.generate_signals(df)
                         validated_signals = self.validate_signals_with_trailing(signals, market)
                         filtered_signals = self.filter_signals(validated_signals, market)
@@ -170,7 +175,44 @@ class MarketScanner(BaseScanner):
             'funding_data': funding_rate
         }
 
+    def analyze_support_only(self, market, timeframe):
+        try:
+            df = self.fetch_market_data(market, timeframe)
+            if df is not None and not df.empty:
+                vsa_analyzer = VSAAnalyzer()
+                vsa_df = vsa_analyzer.analyze_candles(df)
+                support_signals = vsa_analyzer.analyze_support_volume(vsa_df)
+                
+                if support_signals:
+                    for signal in support_signals:
+                        message = (
+                            f"🔔 High Volume Support Rejection!\n"
+                            f"Market: {market}\n"
+                            f"Timeframe: {timeframe}\n"
+                            f"Price: {signal['price']}\n"
+                            f"Support Level: {signal['support_level']}\n"
+                            f"Volume Spike: {signal['volume']:.2f}\n"
+                            f"Wick Ratio: {signal['wick_ratio']:.2%}"
+                        )
+                        self.send_telegram_update(message)
+                        
+                        fig = vsa_analyzer.plot_vsa_analysis(vsa_df, market)
+                        if fig:
+                            self.send_chart_to_telegram(market, timeframe, fig)
+                            
+                        self.store_support_signal(market, timeframe, signal)
+                        
+        except Exception as e:
+            self.logger.error(f"Error in support analysis for {market}: {e}")
 
+    def store_support_signal(self, market, timeframe, signal):
+        self.sql_operations('insert', self.db_signals, 'Signals',
+                        market=market,
+                        timeframe=timeframe,
+                        signal_type='HIGH_VOLUME_SUPPORT',
+                        price=signal['price'],
+                        volume_trend='HIGH',
+                        timestamp=str(datetime.now()))
     def analyze_volume_profile(self, df):
         if df is None or df.empty:
             return None
@@ -294,6 +336,76 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error generating signals: {e}")
             return []
+
+    def analyze_vsa_patterns(self, market, timeframe):
+        try:
+            df = self.fetch_market_data(market, timeframe)
+            if df is not None and not df.empty:
+                vsa_analyzer = VSAAnalyzer()
+                df_with_vsa = vsa_analyzer.analyze_candles(df)
+                
+                # Get latest VSA patterns
+                latest_pattern = df_with_vsa['VSA_Pattern'].iloc[-1]
+                
+                if latest_pattern != 'Neutral':
+                    signal = {
+                        'type': f'VSA_{latest_pattern}',
+                        'price': df_with_vsa['close'].iloc[-1],
+                        'volume': df_with_vsa['volume'].iloc[-1],
+                        'pattern': latest_pattern,
+                        'timestamp': datetime.now()
+                    }
+                    
+                    # Pass the dataframe to process_vsa_signal
+                    self.process_vsa_signal(market, timeframe, signal, df_with_vsa)
+                    
+                return df_with_vsa
+                
+        except Exception as e:
+            self.logger.error(f"VSA analysis error for {market}: {e}")
+            return None
+
+    def send_chart_to_telegram(self, market, timeframe, fig):
+        try:
+            # Save plot to temporary file
+            temp_file = f"chart_{market.replace('/', '_')}_{timeframe}.png"
+            fig.savefig(temp_file, bbox_inches='tight')
+            
+            # Send image via Telegram
+            url = f'https://api.telegram.org/bot{self.bot_token}/sendPhoto'
+            files = {'photo': open(temp_file, 'rb')}
+            data = {'chat_id': self.tel_id}
+            
+            response = requests.post(url, files=files, data=data)
+            
+            # Cleanup
+            plt.close(fig)
+            os.remove(temp_file)
+            
+            return response.ok
+        except Exception as e:
+            self.logger.error(f"Error sending chart: {e}")
+            return False
+
+    def process_vsa_signal(self, market, timeframe, signal, df):
+        # Create VSA plot
+        vsa_analyzer = VSAAnalyzer()
+        fig = vsa_analyzer.plot_vsa_analysis(df, market)
+        
+        # Send text message
+        message = (
+            f"🔍 VSA Signal Detected!\n"
+            f"Market: {market}\n"
+            f"Pattern: {signal['pattern']}\n"
+            f"Price: {signal['price']}\n"
+            f"Volume: {signal['volume']}\n"
+            f"Timeframe: {timeframe}"
+        )
+        self.send_telegram_update(message)
+        
+        # Send chart
+        self.send_chart_to_telegram(market, timeframe, fig)
+
 
     def process_signals(self, market, timeframe, signals):
         for signal in signals:

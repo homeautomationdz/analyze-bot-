@@ -13,11 +13,12 @@ import pandas as pd
 import ccxt
 import numpy as np
 from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
 
 class BaseScanner(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
-        self.master = master  # Set master first
+        self.master = master
         self.setup_core_components()
         self.initialize_signal_processor()
     def setup_database_config(self):
