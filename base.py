@@ -13,12 +13,11 @@ import pandas as pd
 import ccxt
 import numpy as np
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 
 class BaseScanner(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
-        self.master = master
+        self.master = master  # Set master first
         self.setup_core_components()
         self.initialize_signal_processor()
     def setup_database_config(self):
@@ -103,7 +102,7 @@ class BaseScanner(tk.Frame):
             exchange_configs = {
                 'CoinEx': ccxt.coinex,
                 'BingX': ccxt.bingx,
-                'okx': ccxt.okx,
+                'Okex': ccxt.okex,
                 'Binance': ccxt.binance,
                 'Kucoin': ccxt.kucoin,
                 'Bybit': ccxt.bybit
@@ -122,7 +121,7 @@ class BaseScanner(tk.Frame):
                 }
             }
 
-            if exchange_name in ['okx', 'Kucoin']:
+            if exchange_name in ['Okex', 'Kucoin']:
                 config['password'] = self.phrase
 
             self.binance = exchange_configs[exchange_name](config)
