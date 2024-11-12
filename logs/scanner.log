@@ -946,3 +946,404 @@
 2024-11-12 14:58:14,333 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
 2024-11-12 15:03:37,974 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'process_signal'
 2024-11-12 15:03:47,369 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'process_signal'
+2024-11-12 16:15:14,847 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:15:16,213 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:17:23,996 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:17:24,965 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:18:52,540 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:18:53,760 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:19:19,959 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:19:21,563 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:19:36,419 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:19:37,806 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:20:56,883 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:20:58,503 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:21:13,503 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:21:14,900 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:21:43,017 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:21:44,340 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:22:08,829 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:22:09,652 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:23:04,789 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:23:05,615 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:23:14,969 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:23:16,009 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:23:33,206 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:23:33,936 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:23:44,840 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:23:45,620 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:24:37,212 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:24:38,195 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:24:48,056 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:24:48,757 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:25:06,135 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:25:06,941 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:25:17,498 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:25:18,208 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:26:09,188 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:26:09,922 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:26:19,849 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:26:20,562 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:26:35,819 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:26:36,547 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:26:38,232 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:26:39,140 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:26:39,957 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:26:41,069 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:27:38,938 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:27:39,904 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:27:49,347 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:27:50,078 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:28:05,546 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:28:06,389 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:28:08,474 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:28:09,248 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:28:10,076 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:28:10,808 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:28:20,096 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:28:20,835 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:10,022 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:10,773 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:19,906 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:20,624 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:35,742 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:36,462 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:38,116 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:39,014 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:39,828 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:40,523 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:49,732 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:50,429 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:29:51,246 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:29:52,024 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:30:49,450 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:30:50,148 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:31:07,124 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:31:07,822 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:31:17,792 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:31:18,472 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:31:18,473 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:31:19,158 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:32:16,488 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:32:17,422 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:32:34,480 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:32:35,403 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:32:45,430 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:32:46,145 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:33:43,772 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:33:44,505 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:34:01,035 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:34:01,858 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:34:11,462 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:34:12,186 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:34:50,552 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:34:51,252 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:34:52,932 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:34:53,625 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:35:11,877 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:35:12,596 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:36:18,382 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:36:19,038 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:37:41,830 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:37:42,524 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:37:44,177 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:37:44,850 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:39:08,446 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:39:09,157 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:39:27,367 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:39:28,376 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:39:34,947 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:39:35,746 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:40:52,408 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:40:53,129 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:40:59,658 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:41:00,383 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:41:10,264 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:41:10,972 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:42:20,571 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:42:21,296 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:42:28,199 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:42:28,916 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:42:38,972 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:42:39,723 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:42:55,920 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:42:56,619 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:43:49,838 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:43:50,697 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:43:57,264 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:43:57,983 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:44:07,818 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:44:08,553 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:44:18,801 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:44:19,503 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:44:25,269 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:44:25,951 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:44:45,727 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:44:46,806 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:19,419 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:45:20,149 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:26,927 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:45:27,603 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:34,519 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:45:35,254 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:38,574 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:45:39,393 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:41,840 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:45:42,574 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:52,799 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:45:53,547 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:45:59,303 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:46:00,019 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:46:54,076 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:46:54,888 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:47:01,577 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:47:02,480 - ERROR - Error sending chart: name 'plt' is not defined
+2024-11-12 16:55:22,970 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:55:25,571 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 16:55:29,133 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 16:55:38,404 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:55:46,474 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_XRP_USDT_30m.png'
+2024-11-12 16:55:48,530 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_XRP_USDT_30m.png'
+2024-11-12 16:56:17,706 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:56:20,129 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 16:56:21,717 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 16:57:13,462 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:57:16,543 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 16:57:25,363 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 16:57:36,066 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:57:40,428 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_XLM_USDT_30m.png'
+2024-11-12 16:57:41,239 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_XLM_USDT_30m.png'
+2024-11-12 16:57:43,152 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:57:46,103 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 16:57:52,758 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 16:58:02,574 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:58:04,713 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 16:58:05,727 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 16:58:10,121 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:58:12,308 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 16:58:13,607 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 16:58:18,540 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:58:32,540 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CAKE_USDT_30m.png'
+2024-11-12 16:58:35,969 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CAKE_USDT_30m.png'
+2024-11-12 16:58:48,877 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:58:51,739 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 16:58:54,317 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 16:59:18,056 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 16:59:20,514 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 16:59:21,774 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 16:59:54,631 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:00:11,152 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:00:13,967 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:00:21,820 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:00:25,017 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:00:42,900 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:01:37,836 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:01:46,660 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 17:01:52,301 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 17:02:02,417 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:02:09,599 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 17:02:10,996 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 17:02:20,680 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:02:33,298 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 17:02:47,287 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 17:02:51,033 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:02:58,619 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 17:02:59,891 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 17:03:04,888 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:06:05,682 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 17:06:05,683 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:06:32,338 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:06:32,340 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:06:45,407 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:06:45,408 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:06:51,938 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FTM_USDT_30m.png'
+2024-11-12 17:06:51,939 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:06:56,590 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_OP_USDT_30m.png'
+2024-11-12 17:06:56,592 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:07:23,561 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ETHFI_USDT_30m.png'
+2024-11-12 17:07:23,562 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:07:28,258 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_AR_USDT_30m.png'
+2024-11-12 17:07:28,258 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:07:31,001 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 17:07:31,002 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:07:42,398 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 17:07:42,400 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:05,931 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ZRO_USDT_30m.png'
+2024-11-12 17:08:05,933 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:22,741 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 17:08:22,742 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:31,719 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 17:08:31,719 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:35,820 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CAKE_USDT_30m.png'
+2024-11-12 17:08:35,821 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:51,146 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 17:08:51,147 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:53,890 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_ARS_30m.png'
+2024-11-12 17:08:53,891 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:08:57,862 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDC_USDT_30m.png'
+2024-11-12 17:08:57,863 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:09:18,485 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:09:18,486 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:09:24,790 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:09:24,790 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:09:39,765 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_1000SATS_USDT_30m.png'
+2024-11-12 17:09:39,766 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:09:42,878 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_TAO_USDT_30m.png'
+2024-11-12 17:09:42,879 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:09:50,854 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FTM_USDT_30m.png'
+2024-11-12 17:09:50,855 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:01,415 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ORDI_USDT_30m.png'
+2024-11-12 17:10:01,416 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:04,392 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_OP_USDT_30m.png'
+2024-11-12 17:10:04,393 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:11,963 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_PEOPLE_USDT_30m.png'
+2024-11-12 17:10:11,963 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:26,166 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_INJ_USDT_30m.png'
+2024-11-12 17:10:26,167 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:35,226 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ETHFI_USDT_30m.png'
+2024-11-12 17:10:35,227 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:39,475 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_AR_USDT_30m.png'
+2024-11-12 17:10:39,476 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:44,740 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 17:10:44,740 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:48,589 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_EIGEN_USDT_30m.png'
+2024-11-12 17:10:48,590 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:10:54,600 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 17:10:54,602 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:02,485 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ZRO_USDT_30m.png'
+2024-11-12 17:11:02,486 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:06,195 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 17:11:06,196 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:19,902 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 17:11:19,904 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:24,297 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CAKE_USDT_30m.png'
+2024-11-12 17:11:24,299 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:29,996 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FIDA_USDT_30m.png'
+2024-11-12 17:11:29,996 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:44,760 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 17:11:44,761 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:11:54,258 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_ARS_30m.png'
+2024-11-12 17:11:54,259 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:12:06,648 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDC_USDT_30m.png'
+2024-11-12 17:12:06,649 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:12:35,579 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:12:35,580 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:12:47,915 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:12:47,915 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:12:52,632 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_1000SATS_USDT_30m.png'
+2024-11-12 17:12:52,633 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:08,387 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_TAO_USDT_30m.png'
+2024-11-12 17:13:08,389 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:12,876 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FTM_USDT_30m.png'
+2024-11-12 17:13:12,877 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:16,926 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_OP_USDT_30m.png'
+2024-11-12 17:13:16,927 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:21,634 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ORDI_USDT_30m.png'
+2024-11-12 17:13:21,635 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:24,660 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_TIA_USDT_30m.png'
+2024-11-12 17:13:24,660 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:32,889 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_PEOPLE_USDT_30m.png'
+2024-11-12 17:13:32,890 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:40,671 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_POL_USDT_30m.png'
+2024-11-12 17:13:40,671 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:49,231 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ARKM_USDT_30m.png'
+2024-11-12 17:13:49,232 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:13:56,570 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_INJ_USDT_30m.png'
+2024-11-12 17:13:56,571 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:08,453 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ETHFI_USDT_30m.png'
+2024-11-12 17:14:08,454 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:19,240 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_AR_USDT_30m.png'
+2024-11-12 17:14:19,241 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:23,497 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 17:14:23,499 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:26,823 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_LDO_USDT_30m.png'
+2024-11-12 17:14:26,824 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:29,737 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_EIGEN_USDT_30m.png'
+2024-11-12 17:14:29,738 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:33,178 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_PYTH_USDT_30m.png'
+2024-11-12 17:14:33,179 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:36,582 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CETUS_USDT_30m.png'
+2024-11-12 17:14:36,583 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:41,789 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 17:14:41,790 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:48,832 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_BLUR_USDT_30m.png'
+2024-11-12 17:14:48,833 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:14:57,053 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ZRO_USDT_30m.png'
+2024-11-12 17:14:57,055 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:00,085 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 17:15:00,086 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:04,765 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 17:15:04,767 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:09,692 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CAKE_USDT_30m.png'
+2024-11-12 17:15:09,693 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:16,070 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FIDA_USDT_30m.png'
+2024-11-12 17:15:16,072 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:23,162 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 17:15:23,163 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:23,421 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:44,259 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_ARS_30m.png'
+2024-11-12 17:15:44,260 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:15:48,716 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDC_USDT_30m.png'
+2024-11-12 17:15:48,717 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:13,744 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:16:13,744 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:20,735 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:16:20,736 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:26,208 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_1000SATS_USDT_30m.png'
+2024-11-12 17:16:26,209 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:38,274 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_TAO_USDT_30m.png'
+2024-11-12 17:16:38,275 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:42,019 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FTM_USDT_30m.png'
+2024-11-12 17:16:42,020 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:53,963 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_OP_USDT_30m.png'
+2024-11-12 17:16:53,964 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:16:56,629 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ORDI_USDT_30m.png'
+2024-11-12 17:16:56,630 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:00,346 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_TIA_USDT_30m.png'
+2024-11-12 17:17:00,347 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:07,654 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_PEOPLE_USDT_30m.png'
+2024-11-12 17:17:07,655 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:16,675 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_POL_USDT_30m.png'
+2024-11-12 17:17:16,676 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:27,037 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_INJ_USDT_30m.png'
+2024-11-12 17:17:27,038 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:32,351 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ETHFI_USDT_30m.png'
+2024-11-12 17:17:32,353 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:35,920 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_AR_USDT_30m.png'
+2024-11-12 17:17:35,921 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:40,354 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_SAGA_USDT_30m.png'
+2024-11-12 17:17:40,355 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:45,385 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_LDO_USDT_30m.png'
+2024-11-12 17:17:45,387 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:17:56,606 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_EIGEN_USDT_30m.png'
+2024-11-12 17:17:56,608 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:06,797 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_PYTH_USDT_30m.png'
+2024-11-12 17:18:06,798 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:12,295 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ENS_USDT_30m.png'
+2024-11-12 17:18:12,296 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:19,208 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_BLUR_USDT_30m.png'
+2024-11-12 17:18:19,209 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:23,229 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_ZRO_USDT_30m.png'
+2024-11-12 17:18:23,231 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:37,759 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_DYDX_USDT_30m.png'
+2024-11-12 17:18:37,760 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:42,237 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_JASMY_USDT_30m.png'
+2024-11-12 17:18:42,238 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:51,904 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CAKE_USDT_30m.png'
+2024-11-12 17:18:51,905 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:18:56,502 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_CRV_USDT_30m.png'
+2024-11-12 17:18:56,503 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:19:08,455 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FIDA_USDT_30m.png'
+2024-11-12 17:19:08,457 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:19:16,018 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_COP_30m.png'
+2024-11-12 17:19:16,019 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:19:18,748 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_USDT_ARS_30m.png'
+2024-11-12 17:19:18,749 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:19:39,390 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_FET_USDT_30m.png'
+2024-11-12 17:19:39,391 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:19:46,987 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_RUNE_USDT_30m.png'
+2024-11-12 17:19:46,989 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:19:52,968 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_1000SATS_USDT_30m.png'
+2024-11-12 17:19:52,969 - ERROR - Database error: table Signals has no column named support_level
+2024-11-12 17:20:00,085 - ERROR - Error sending chart: [WinError 32] The process cannot access the file because it is being used by another process: 'chart_TAO_USDT_30m.png'
+2024-11-12 17:20:00,086 - ERROR - Database error: table Signals has no column named support_level

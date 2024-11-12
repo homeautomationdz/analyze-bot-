@@ -16,7 +16,8 @@ from market_scanner import MarketScanner
 import threading
 import logging
 from vsa_analyzer import VSAAnalyzer
-
+import matplotlib.pyplot as plt
+import os
 
 class ScannerGUI(MarketScanner):
     def __init__(self, master=None):
@@ -32,7 +33,7 @@ class ScannerGUI(MarketScanner):
         
         # Core components initialization
         self.tel_id = None
-        self.bot_tocken = None
+        self.bot_token = None
         self.scanning = False
         self.filtered_list = []
         self.selected_markets = []
@@ -77,30 +78,60 @@ class ScannerGUI(MarketScanner):
         return vsa_signals
     def process_signal(self, market, timeframe, signal):
         try:
-            # Store signal in database
+            # Store in database
             self.sql_operations('insert', self.db_signals, 'Signals',
                             market=market,
                             timeframe=timeframe,
                             signal_type=signal['type'],
                             price=signal['price'],
+                            volume_trend=signal.get('volume', ''),
+                            support_level=signal.get('support_level', 0.0),
+                            wick_ratio=signal.get('wick_ratio', 0.0),
                             timestamp=str(datetime.now()))
-
-            # Create notification message
+            
+            # Create and send message
             message = (
                 f"🔔 Signal Alert!\n"
                 f"Market: {market}\n"
                 f"Type: {signal['type']}\n"
                 f"Price: {signal['price']:.8f}\n"
                 f"Timeframe: {timeframe}\n"
-                f"Strength: {signal.get('strength', 'medium')}"
+                f"Strength: {signal.get('strength', 'medium')}\n"
             )
-
-            # Send notification
+            
+            if 'support_level' in signal:
+                message += f"Support Level: {signal['support_level']:.8f}\n"
+            if 'wick_ratio' in signal:
+                message += f"Wick Ratio: {signal['wick_ratio']:.2%}\n"
+            if 'volume' in signal:
+                message += f"Volume: {signal['volume']:.2f}\n"
+                
             self.send_telegram_update(message)
-            print(f"Signal processed for {market}: {signal['type']}")
-
+                
         except Exception as e:
             print(f"Error processing signal: {e}")
+    def send_chart_to_telegram(self, market, timeframe, fig):
+        try:
+            # Save figure to temporary file
+            temp_file = f"chart_{market.replace('/', '_')}_{timeframe}.png"
+            fig.savefig(temp_file)
+            plt.close(fig)
+            
+            # Send to Telegram
+            url = f'https://api.telegram.org/bot{self.bot_token}/sendPhoto'
+            files = {'photo': open(temp_file, 'rb')}
+            data = {'chat_id': self.tel_id}
+            
+            response = requests.post(url, files=files, data=data)
+            
+            # Clean up
+            os.remove(temp_file)
+            
+            if not response.ok:
+                self.logger.error(f"Telegram API error: {response.text}")
+                
+        except Exception as e:
+            self.logger.error(f"Error sending chart: {e}")
 
     def send_telegram_update(self, message):
         if self.tel_id and self.bot_token:
@@ -305,32 +336,32 @@ class ScannerGUI(MarketScanner):
 
     def scan_for_signals(self):
         self.vsa_analyzer = VSAAnalyzer()
-        
         while self.scanning:
             try:
                 markets = self.selected_markets if self.user_choice.get() == 1 else self.change(self.choose_list.get())
-                print(f"Scanning markets: {markets}")
                 
                 for market in markets:
                     if not self.scanning:
                         break
                     
-                    print(f"Analyzing market: {market}")
                     df = self.fetch_market_data(market, '30m')
-                    
                     if df is not None and not df.empty:
                         # VSA Analysis
                         vsa_df = self.vsa_analyzer.analyze_candles(df)
-                        print(f"VSA analysis completed for {market}")
-                        
-                        # Generate signals
+                        support_signals = self.vsa_analyzer.analyze_support_volume(vsa_df)
+                        wick_signals = self.vsa_analyzer.analyze_wick_rejection(df, '30m')
                         signals = self.generate_signals(df)
                         vsa_signals = self.analyze_vsa_patterns(vsa_df)
-                        print(f"VSA signals for {market}: {vsa_signals}")
                         
-                        all_signals = signals + vsa_signals
+                        all_signals = signals + vsa_signals + support_signals + wick_signals
                         
                         if all_signals:
+                            # Generate chart once for all signals
+                            fig = self.vsa_analyzer.plot_vsa_analysis(vsa_df, market)
+                            self.send_chart_to_telegram(market, '30m', fig)
+                            plt.close(fig)
+                            
+                            # Process individual signals
                             for signal in all_signals:
                                 self.process_signal(market, '30m', signal)
                                 
@@ -340,6 +371,8 @@ class ScannerGUI(MarketScanner):
                 print(f"Detailed scanning error: {str(e)}")
                 self.logger.error(f"Scanning error: {e}")
                 time.sleep(5)
+
+
 
     def start_scanning(self):
         if not self.scanning:
