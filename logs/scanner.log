@@ -932,3 +932,17 @@
 2024-11-11 16:52:54,788 - ERROR - Error creating exchange object: module 'ccxt' has no attribute 'okex'
 2024-11-11 16:55:54,644 - ERROR - Error creating exchange object: module 'ccxt' has no attribute 'okex'
 2024-11-11 16:56:18,013 - ERROR - Error creating exchange object: module 'ccxt' has no attribute 'okex'
+2024-11-12 14:48:51,830 - ERROR - Telegram error: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot7342130675:AAGkKBpPnfbgMh1J8FADQ3PaD5hV_r6PhfA/sendMessage?chat_id=1434650273&text=Signal%3A+RSI_OVERSOLD%0AMarket%3A+RAY%2FUSDT%0ATimeframe%3A+15m%0APrice%3A+4.366&parse_mode=HTML (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000002D31906D790>, 'Connection to api.telegram.org timed out. (connect timeout=None)'))
+2024-11-12 14:49:12,529 - ERROR - Telegram error: ('Connection aborted.', ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))
+2024-11-12 14:50:32,501 - ERROR - Telegram error: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot7342130675:AAGkKBpPnfbgMh1J8FADQ3PaD5hV_r6PhfA/sendMessage?chat_id=1434650273&text=Signal%3A+RSI_OVERSOLD%0AMarket%3A+FIDA%2FUSDT%0ATimeframe%3A+15m%0APrice%3A+0.2174&parse_mode=HTML (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000002D31906C1D0>, 'Connection to api.telegram.org timed out. (connect timeout=None)'))
+2024-11-12 14:52:26,171 - ERROR - Telegram error: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot7342130675:AAGkKBpPnfbgMh1J8FADQ3PaD5hV_r6PhfA/sendMessage?chat_id=1434650273&text=Signal%3A+RSI_OVERSOLD%0AMarket%3A+OP%2FUSDT%0ATimeframe%3A+15m%0APrice%3A+1.614&parse_mode=HTML (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000002D3191F35F0>, 'Connection to api.telegram.org timed out. (connect timeout=None)'))
+2024-11-12 14:55:37,083 - ERROR - Scanning error: name 'VSAAnalyzer' is not defined
+2024-11-12 14:55:43,443 - ERROR - Scanning error: name 'VSAAnalyzer' is not defined
+2024-11-12 14:57:44,179 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
+2024-11-12 14:57:50,298 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
+2024-11-12 14:57:56,300 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
+2024-11-12 14:58:02,321 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
+2024-11-12 14:58:08,331 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
+2024-11-12 14:58:14,333 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'analyze_vsa_patterns'
+2024-11-12 15:03:37,974 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'process_signal'
+2024-11-12 15:03:47,369 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'process_signal'
