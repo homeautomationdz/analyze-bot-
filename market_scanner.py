@@ -197,6 +197,68 @@ class MarketScanner(BaseScanner):
             'volume_sma': volume_sma.iloc[-1]
         }
 
+    def analyze_vsa_signals(self, df):
+        vsa_signals = []
+        
+        # Calculate volume metrics
+        df['volume_ma'] = df['volume'].rolling(window=20).mean()
+        df['price_range'] = df['high'] - df['low']
+        df['range_ma'] = df['price_range'].rolling(window=20).mean()
+        
+        # Identify support/resistance levels
+        df['support'] = df['low'].rolling(window=20).min()
+        df['resistance'] = df['high'].rolling(window=20).max()
+        
+        # Analyze last candle
+        latest = df.iloc[-1]
+        prev = df.iloc[-2]
+        
+        # High volume bullish signal near support
+        if (latest['low'] <= latest['support'] and 
+            latest['close'] > latest['open'] and
+            latest['volume'] > latest['volume_ma'] * 2):
+            vsa_signals.append({
+                'type': 'VSA_BULLISH',
+                'strength': 'high',
+                'price': latest['close'],
+                'volume_ratio': latest['volume'] / latest['volume_ma']
+            })
+        
+        # Narrow range high volume at resistance (absorption)
+        if (latest['high'] >= latest['resistance'] and
+            latest['price_range'] < latest['range_ma'] * 0.5 and
+            latest['volume'] > latest['volume_ma'] * 2):
+            vsa_signals.append({
+                'type': 'VSA_ABSORPTION',
+                'strength': 'high',
+                'price': latest['close'],
+                'volume_ratio': latest['volume'] / latest['volume_ma']
+            })
+            
+        return vsa_signals
+
+    def detect_bull_trap(self, df):
+        try:
+            # Check for false breakout above resistance
+            df['resistance'] = df['high'].rolling(window=20).max()
+            return (df['high'].iloc[-1] > df['resistance'].iloc[-2] and
+                    df['close'].iloc[-1] < df['resistance'].iloc[-2] and
+                    df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1])
+        except Exception as e:
+            self.logger.error(f"Error detecting bull trap: {e}")
+            return False
+
+    def detect_bear_trap(self, df):
+        try:
+            # Check for false breakout below support
+            df['support'] = df['low'].rolling(window=20).min()
+            return (df['low'].iloc[-1] < df['support'].iloc[-2] and
+                    df['close'].iloc[-1] > df['support'].iloc[-2] and
+                    df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1])
+        except Exception as e:
+            self.logger.error(f"Error detecting bear trap: {e}")
+            return False
+
     def detect_trend_strength(self, df):
         df['adx'] = talib.ADX(df['high'], df['low'], df['close'], timeperiod=14)
         return df['adx'].iloc[-1]
@@ -271,30 +333,48 @@ class MarketScanner(BaseScanner):
     def generate_signals(self, df):
         signals = []
         try:
-            # Calculate technical indicators
+            # Technical indicators
             df['rsi'] = talib.RSI(df['close'])
             df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
             df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
-
-            # Check for bullish conditions
-            if df['rsi'].iloc[-1] < 30:  # Oversold
+            
+            # VSA analysis
+            vsa_signals = self.analyze_vsa_signals(df)
+            signals.extend(vsa_signals)
+            
+            # Trap detection
+            if self.detect_bull_trap(df):
+                signals.append({
+                    'type': 'BULL_TRAP',
+                    'price': df['close'].iloc[-1],
+                    'strength': 'high'
+                })
+                
+            if self.detect_bear_trap(df):
+                signals.append({
+                    'type': 'BEAR_TRAP',
+                    'price': df['close'].iloc[-1],
+                    'strength': 'high'
+                })
+            
+            # Traditional signals
+            if df['rsi'].iloc[-1] < 30:
                 signals.append({
                     'type': 'RSI_OVERSOLD',
                     'price': df['close'].iloc[-1]
                 })
-
+                
             if df['ema_20'].iloc[-1] > df['ema_50'].iloc[-1] and \
-                    df['ema_20'].iloc[-2] <= df['ema_50'].iloc[-2]:  # Golden Cross
+            df['ema_20'].iloc[-2] <= df['ema_50'].iloc[-2]:
                 signals.append({
                     'type': 'EMA_CROSS',
                     'price': df['close'].iloc[-1]
                 })
-
+            
             return signals
         except Exception as e:
             self.logger.error(f"Error generating signals: {e}")
             return []
-
     def process_signals(self, market, timeframe, signals):
         for signal in signals:
             self.sql_operations('insert', self.db_signals, 'Signals',

@@ -160,10 +160,6 @@ class BaseScanner(tk.Frame):
                         volume_trend TEXT,
                         vwap REAL,
                         rsi REAL,
-                        support_level REAL,
-                        wick_ratio REAL,
-                        wick_size REAL,
-                        strength TEXT,
                         timestamp TEXT
                     )
                     """
