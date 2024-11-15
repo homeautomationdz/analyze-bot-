@@ -29,7 +29,7 @@ class BaseScanner(tk.Frame):
         # Window configuration
         if self.master:
             self.master.title("Market Scanner")
-            self.master.configure(bg="#000000")
+            self.master.configure(bg="#eeeeee")
         
         # System configuration
         self.tm = int(datetime.now().timestamp())
@@ -160,6 +160,8 @@ class BaseScanner(tk.Frame):
                         volume_trend TEXT,
                         vwap REAL,
                         rsi REAL,
+                        support_strength TEXT,
+                        sentiment_score REAL,
                         timestamp TEXT
                     )
                     """
@@ -198,60 +200,7 @@ class BaseScanner(tk.Frame):
         thread = threading.Thread(target=func, daemon=True)
         thread.start()
 
-    def setup_core_components(self):
-        # Window configuration
-        if self.master:
-            self.master.title("Market Scanner")
-            self.master.configure(bg="#000000")
-            
-        # System configuration
-        self.tm = int(datetime.now().timestamp())
-        self.fixed = 1929999999
-        self.setup_logger('logs/scanner.log')
-        
-        # Threading
-        self.lock = threading.Lock()
-        
-        # Authentication
-        self.auth = None
-        self.api_key = None
-        self.secret_key = None
-        self.phrase = None
-        self.tel_id = None
-        self.bot_token = None
-        
-        # State
-        self.binance = None
-        self.valid = False
-        self.counter = 0
-        
-        # Database configuration
-        self.setup_database_config()
-        
-        # Enhanced database configuration
-        self.db_config = {
-            'pool_size': 5,
-            'timeout': 30,
-            'retry_count': 3
-        }
-        
-        # Signal processing configuration
-        self.signal_config = {
-            'min_volume': 100000,
-            'min_score': 3.0,
-            'confirmation_count': 2,
-            'timeframe_weights': {
-                '1m': 0.5, '5m': 0.7, '15m': 0.8,
-                '1h': 1.0, '4h': 1.2, '1d': 1.5
-            }
-        }
-        
-        # Rate limiting configuration
-        self.rate_config = {
-            'max_calls': 1200,
-            'window': 60,
-            'buffer': 0.9
-        }
+
     def initialize_signal_processor(self):
         self.signal_thresholds = {
             'rsi_oversold': 30,
@@ -519,15 +468,3 @@ class BaseScanner(tk.Frame):
             if 'db1' in locals():
                 db1.close()
 
-    def check_rate_limit(self):
-        current_time = time.time()
-        if current_time - self.rate_limits['last_reset'] >= self.rate_limits['cooldown_period']:
-            self.rate_limits['api_calls'] = 0
-            self.rate_limits['last_reset'] = current_time
-        
-        if self.rate_limits['api_calls'] >= self.rate_limits['max_calls_per_minute']:
-            sleep_time = self.rate_limits['cooldown_period'] - (current_time - self.rate_limits['last_reset'])
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-        
-        self.rate_limits['api_calls'] += 1
