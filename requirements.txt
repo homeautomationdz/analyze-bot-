@@ -12,3 +12,32 @@ API Key: y90BdywNvKze8YTucq2nAV0EJ29gy6INt6AMRV34I3cwQLPZuhNVcz4pHAH1YkIb
 Secret Key: FQX6DfHPgAq253gs5T2drOyuDMfnNkM7RNsFeuZVxMdbyCDxUYP5l0UPXsWXVAki
 
 Back
+start https://download.lfd.uci.edu/pythonlibs/archived/TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
+
+python -m pip install TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
+
+
+start https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+winget install Python.Python.3.11
+python -m ensurepip --default-pip
+
+
+
+python -m pip install ccxt
+
+
+
+python -m pip install pandas
+
+
+
+python -m pip install ta-lib
+
+
+
+python -m pip install requests
+
+
+
+python -m pip install numpy

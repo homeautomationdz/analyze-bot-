@@ -170,7 +170,6 @@ class MarketScanner(BaseScanner):
             'funding_data': funding_rate
         }
 
-
     def analyze_volume_profile(self, df):
         if df is None or df.empty:
             return None
@@ -237,6 +236,81 @@ class MarketScanner(BaseScanner):
             
         return vsa_signals
 
+    # Add new support analysis methods here
+    def define_strong_support(self, df, market):
+        support_analysis = {
+            'price_action_supports': self.detect_price_action_supports(df),
+            'vsa_support': self.apply_vsa_support_analysis(df),
+            'multi_timeframe_supports': self.confirm_multi_timeframe_supports(market),
+            'order_book_supports': self.verify_support_with_order_book(market)
+        }
+        return self.synthesize_support_strength(support_analysis)
+
+    def detect_price_action_supports(self, df):
+        support_levels = []
+        for window in [20, 50, 100]:  # Multiple timeframe windows
+            rolling_low = df['low'].rolling(window=window).min()
+            support_points = rolling_low[
+                (rolling_low == df['low']) & 
+                (df['low'].shift(1) > df['low'])
+            ]
+            for price in support_points:
+                support_levels.append({
+                    'price': price,
+                    'bounce_count': self.count_support_bounces(df, price),
+                    'timeframe_weight': window/20
+                })
+        return support_levels
+
+    def count_support_bounces(self, df, support_price):
+        return sum(
+            1 for i in range(len(df)) 
+            if abs(df['low'].iloc[i] - support_price) / support_price < 0.02 and
+            df['close'].iloc[i] > df['open'].iloc[i]
+        )
+
+    def confirm_multi_timeframe_supports(self, market):
+        timeframes = ['1h', '4h', '1d', '1w']
+        support_strength = 0
+        
+        for tf in timeframes:
+            df = self.fetch_market_data(market, tf)
+            if df is not None:
+                supports = self.detect_price_action_supports(df)
+                support_strength += len(supports) * (timeframes.index(tf) + 1)
+        
+        return support_strength
+
+    def verify_support_with_order_book(self, market):
+        order_book = self.binance.fetch_order_book(market)
+        support_zones = {}
+        
+        for bid in order_book['bids'][:10]:  # Top 10 bid levels
+            price_level = bid[0]
+            volume = bid[1]
+            support_zones[price_level] = volume
+            
+        return {
+            'support_zones': support_zones,
+            'total_bid_volume': sum(support_zones.values())
+        }
+
+    def synthesize_support_strength(self, support_analysis):
+        total_strength = (
+            len(support_analysis['price_action_supports']) * 0.3 +
+            support_analysis['vsa_support'] * 0.25 +
+            support_analysis['multi_timeframe_supports'] * 0.25 +
+            (support_analysis['order_book_supports']['total_bid_volume'] > 100) * 0.2
+        )
+        
+        return {
+            'strength': 'Very Strong' if total_strength > 0.8 else
+                       'Strong' if total_strength > 0.6 else
+                       'Moderate' if total_strength > 0.4 else 'Weak',
+            'score': total_strength,
+            'details': support_analysis
+        }
+
     def detect_bull_trap(self, df):
         try:
             # Check for false breakout above resistance
@@ -262,6 +336,7 @@ class MarketScanner(BaseScanner):
     def detect_trend_strength(self, df):
         df['adx'] = talib.ADX(df['high'], df['low'], df['close'], timeperiod=14)
         return df['adx'].iloc[-1]
+
     def get_technical_sentiment(self, df):
         if df is None or df.empty:
             return None
@@ -303,12 +378,14 @@ class MarketScanner(BaseScanner):
         # Score technical signals
         tech = sentiment_data['technical_signals']
         if tech:
-            if tech['rsi_sentiment'] == 'oversold': score += weights['technical_signals'] * 0.4
-            if tech['macd_sentiment'] == 'bullish': score += weights['technical_signals'] * 0.3
-            if tech['stoch_sentiment'] == 'oversold': score += weights['technical_signals'] * 0.3
+            if tech['rsi_sentiment'] == 'oversold':
+                score += weights['technical_signals'] * 0.4
+            if tech['macd_sentiment'] == 'bullish':
+                score += weights['technical_signals'] * 0.3
+            if tech['stoch_sentiment'] == 'oversold':
+                score += weights['technical_signals'] * 0.3
 
         return score
-
     def filter_signals_by_sentiment(self, signals, sentiment_threshold=0.6):
         filtered_signals = []
 
@@ -375,6 +452,7 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error generating signals: {e}")
             return []
+
     def process_signals(self, market, timeframe, signals):
         for signal in signals:
             self.sql_operations('insert', self.db_signals, 'Signals',
@@ -386,6 +464,7 @@ class MarketScanner(BaseScanner):
 
             message = f"Signal: {signal['type']}\nMarket: {market}\nTimeframe: {timeframe}\nPrice: {signal['price']}"
             self.send_telegram_update(message)
+
     def send_telegram_update(self, message):
         if self.tel_id and self.bot_token:
             try:
