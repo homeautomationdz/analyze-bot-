@@ -139,7 +139,25 @@ class BaseScanner(tk.Frame):
             cursor = conn.cursor()
 
             if operation == 'create':
-                if table_name == 'userinfo':
+                if table_name == 'Signals':
+                    sql_query = """
+                    CREATE TABLE IF NOT EXISTS Signals (
+                        market TEXT,
+                        timeframe TEXT,
+                        signal_type TEXT,
+                        price REAL,
+                        volume_trend TEXT,
+                        volume_ratio REAL,
+                        vwap REAL,
+                        rsi REAL,
+                        support_strength TEXT,
+                        support_level REAL,
+                        sentiment_score REAL,
+                        strength_score INTEGER,
+                        timestamp TEXT
+                    )
+                    """
+                elif table_name == 'userinfo':
                     sql_query = """
                     CREATE TABLE IF NOT EXISTS userinfo (
                         name TEXT,
@@ -148,21 +166,6 @@ class BaseScanner(tk.Frame):
                         phrase TEXT,
                         tel_id TEXT,
                         tel_token TEXT
-                    )
-                    """
-                elif table_name == 'Signals':
-                    sql_query = """
-                    CREATE TABLE IF NOT EXISTS Signals (
-                        market TEXT,
-                        timeframe TEXT,
-                        signal_type TEXT,
-                        price REAL,
-                        volume_trend TEXT,
-                        vwap REAL,
-                        rsi REAL,
-                        support_strength TEXT,
-                        sentiment_score REAL,
-                        timestamp TEXT
                     )
                     """
                 cursor.execute(sql_query)
@@ -187,6 +190,7 @@ class BaseScanner(tk.Frame):
         finally:
             if conn:
                 conn.close()
+
 
 
     def check_internet_connection(self):

@@ -40,6 +40,49 @@ class MarketScanner(BaseScanner):
             'stop_levels': {},
             'active_signals': set()
         }
+    def send_signal_alert(self, message, market, signal_type):
+        """Dedicated method for sending signal alerts"""
+        if not self.tel_id or not self.bot_token:
+            self.logger.error("Telegram credentials missing")
+            return False
+
+        try:
+            url = f'https://api.telegram.org/bot{self.bot_token}/sendMessage'
+            params = {
+                'chat_id': self.tel_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            response = requests.post(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                self.logger.info(f"Signal alert sent for {market}: {signal_type}")
+                return True
+            else:
+                self.logger.error(f"Failed to send signal alert: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Signal alert error: {e}")
+            return False
+
+    def send_health_update(self, message):
+        """Dedicated method for health monitoring updates"""
+        if not self.tel_id or not self.bot_token:
+            return False
+
+        try:
+            url = f'https://api.telegram.org/bot{self.bot_token}/sendMessage'
+            params = {
+                'chat_id': self.tel_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            return requests.post(url, params=params, timeout=10).status_code == 200
+        except:
+            return False
+    
+ 
     def store_signals_db(self, signals, market, timeframe):
         for signal in signals:
             signal_data = {
@@ -55,35 +98,48 @@ class MarketScanner(BaseScanner):
         while self.scanning:
             try:
                 self.check_rate_limit()
-
-                if self.user_choice.get() == 0:
-                    markets = self.change(self.choose_list.get())
-                else:
-                    markets = self.selected_markets
+                markets = self.selected_markets if self.user_choice.get() == 1 else self.change(self.choose_list.get())
+                timeframe = self.choose_time.get()
 
                 for market in markets:
                     if not self.scanning:
                         break
 
-                    timeframe = self.choose_time.get()
                     df = self.fetch_market_data(market, timeframe)
-
                     if df is not None and not df.empty:
+                        df = df.copy()
+                        df.set_index('timestamp', inplace=True)
+                        
                         signals = self.generate_signals(df, market)
-                        validated_signals = self.validate_signals_with_trailing(signals, market)
-                        filtered_signals = self.filter_signals(validated_signals, market)
-
-                        if filtered_signals:
-                            self.process_signals(market, timeframe, filtered_signals)
-                            self.store_signals_db(filtered_signals, market, timeframe)
+                        if signals:
+                            self.logger.info(f"Initial signals generated for {market}: {len(signals)}")
+                            self.process_signals(market, timeframe, signals)
+                            self.store_signals_db(signals, market, timeframe)
                             self.update_trailing_stops(market, df['close'].iloc[-1])
-                            self.update_dashboard()  # Update GUI with new data
+                            self.update_dashboard()
 
                     time.sleep(0.1)
 
             except Exception as e:
                 self.logger.error(f"Scanning error: {e}")
                 time.sleep(5)
+
+
+    def monitor_signal_health(self):
+        while self.scanning:
+            try:
+                signals = self.sql_operations('fetch', self.db_signals, 'Signals')
+                health_message = (
+                    "🤖 Scanner Health Report\n"
+                    f"Active Markets: {len(self.selected_markets)}\n"
+                    f"Signals Generated: {len(signals)}"
+                )
+                self.send_health_update(health_message)
+            except Exception as e:
+                self.logger.error(f"Health monitoring error: {e}")
+            time.sleep(3600)
+
+
     def validate_signals_with_trailing(self, signals, market):
         try:
             validated = []
@@ -224,7 +280,75 @@ class MarketScanner(BaseScanner):
             'volume_profile': volume_profile,
             'funding_data': funding_rate
         }
+    def calculate_risk_reward(self, current_price, support_analysis):
+        support_level = support_analysis.get('support_level', current_price * 0.99)
+        risk = current_price - support_level
+        reward = risk * 3  # 1:3 risk/reward ratio
+        return reward/risk if risk > 0 else 0
+    def _generate_stoch_signals(self, df, market, support_strength):
+        signals = []
+        try:
+            if 'stoch_k' in df and 'stoch_d' in df:
+                if df['stoch_k'].iloc[-1] < 20 and df['stoch_k'].iloc[-1] > df['stoch_d'].iloc[-1]:
+                    signals.append({
+                        'type': 'STOCH_OVERSOLD_BULLISH',
+                        'market': market,
+                        'price': df['close'].iloc[-1],
+                        'stoch_k': df['stoch_k'].iloc[-1],
+                        'stoch_d': df['stoch_d'].iloc[-1],
+                        'support_strength': support_strength['score'],
+                        'timestamp': datetime.now().isoformat()
+                    })
+        except Exception as e:
+            self.logger.error(f"Stochastic signal generation error: {e}")
+        return signals
 
+    def _generate_adx_signals(self, df, market, support_strength):
+        signals = []
+        try:
+            if 'adx' in df:
+                if df['adx'].iloc[-1] > 25 and df['ema_20'].iloc[-1] > df['ema_50'].iloc[-1]:
+                    signals.append({
+                        'type': 'ADX_TREND_STRENGTH',
+                        'market': market,
+                        'price': df['close'].iloc[-1],
+                        'adx': df['adx'].iloc[-1],
+                        'support_strength': support_strength['score'],
+                        'timestamp': datetime.now().isoformat()
+                    })
+        except Exception as e:
+            self.logger.error(f"ADX signal generation error: {e}")
+        return signals
+
+
+    def _calculate_signal_strength(self, df, signal):
+        strength = 0
+        try:
+            # Volume strength
+            if df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1]:
+                strength += 0.2
+
+            # Trend strength
+            if df['ema_20'].iloc[-1] > df['ema_50'].iloc[-1]:
+                strength += 0.2
+
+            # RSI confirmation
+            if 30 <= df['rsi'].iloc[-1] <= 70:
+                strength += 0.2
+
+            # Support strength
+            if signal.get('support_strength', 0) > 0.5:
+                strength += 0.2
+
+            # Price action
+            if df['close'].iloc[-1] > df['open'].iloc[-1]:
+                strength += 0.2
+
+            return strength
+        except Exception as e:
+            self.logger.error(f"Signal strength calculation error: {e}")
+            return 0.5  
+    
     def analyze_volume_profile(self, df):
         if df is None or df.empty:
             return None
@@ -327,7 +451,6 @@ class MarketScanner(BaseScanner):
         }
 
     def define_strong_support(self, df, market):
-        """Comprehensive support strength analysis"""
         support_analysis = {
             'price_action': self.detect_price_action_supports(df),
             'vsa': self.apply_vsa_support_analysis(df),
@@ -335,7 +458,9 @@ class MarketScanner(BaseScanner):
             'order_book': self.verify_support_with_order_book(market)
         }
         
-        return self.synthesize_support_strength(support_analysis)
+        result = self.synthesize_support_strength(support_analysis)
+        result['support_level'] = df['low'].rolling(window=20).min().iloc[-1]  # Add actual support level
+        return result
 
     def detect_price_action_supports(self, df):
         support_levels = []
@@ -749,132 +874,78 @@ class MarketScanner(BaseScanner):
     def generate_signals(self, df, market):
         signals = []
         try:
-            # Comprehensive validation
-            if df is None or df.empty:
-                self.logger.error(f"DataFrame is None or empty for market: {market}")
+            # Data validation
+            if df is None or df.empty or len(df) < 20:
+                self.logger.info(f"Insufficient data for {market}")
                 return []
-            
-            # Ensure minimum data points
-            if len(df) < 20:
-                self.logger.warning(f"Insufficient data points for {market}: {len(df)} rows")
-                return []
-            
-            # Ensure required columns exist
+
+            # Column validation
             required_columns = ['open', 'high', 'low', 'close', 'volume']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            if missing_columns:
-                self.logger.error(f"Missing columns in DataFrame: {missing_columns}")
+            if not all(col in df.columns for col in required_columns):
+                self.logger.error(f"Missing required columns for {market}")
                 return []
+
+            # Calculate technical indicators
+            close, high, low = df['close'].values, df['high'].values, df['low'].values
             
-            # Calculate indicators safely
-            try:
-                close = df['close'].values
-                high = df['high'].values
-                low = df['low'].values
-                
-                # Safe indicator calculations with fallback
-                def safe_ta_lib_calc(func, *args, **kwargs):
-                    try:
-                        result = func(*args, **kwargs)
-                        if isinstance(result, tuple):
-                            if len(result) == 3:
-                                return result
-                            else:
-                                return result[-1]
-                        return result
-                    except Exception as e:
-                        self.logger.error(f"TA-Lib calculation error for {func.__name__}: {e}")
-                        return None
-                
-                # Calculate indicators
-                df['rsi'] = safe_ta_lib_calc(talib.RSI, close, timeperiod=14)
-                
-                # Special handling for MACD
-                macd_result = safe_ta_lib_calc(talib.MACD, close)
-                if macd_result is not None:
-                    if isinstance(macd_result, tuple):
-                        df['macd'], df['macd_signal'], df['macd_hist'] = macd_result
-                    else:
-                        # Fallback if unexpected result
-                        df['macd'] = df['macd_signal'] = df['macd_hist'] = None
-                
-                df['ema_20'] = safe_ta_lib_calc(talib.EMA, close, timeperiod=20)
-                df['ema_50'] = safe_ta_lib_calc(talib.EMA, close, timeperiod=50)
-                
-                # Fallback calculations if TA-Lib fails
-                if df['rsi'] is None:
-                    df['rsi'] = self._manual_rsi_calculation(close)
-                
-                if df['ema_20'] is None or df['ema_50'] is None:
-                    df['ema_20'] = self._manual_ema_calculation(close, 20)
-                    df['ema_50'] = self._manual_ema_calculation(close, 50)
-            
-            except Exception as indicator_error:
-                self.logger.error(f"Indicator calculation error for {market}: {indicator_error}")
-                return []
-            
-            # Simplified support strength analysis
-            try:
-                support_strength = self._simplified_support_strength(df)
-            except Exception as support_error:
-                self.logger.error(f"Support strength analysis error: {support_error}")
-                support_strength = {'score': 0.5}  # Default moderate support
-            
-            # Signal generation strategies
-            signal_strategies = [
-                self._generate_rsi_signals,
-                self._generate_macd_signals,
-                self._generate_ema_signals,
-                self._generate_vsa_signals
-            ]
-            
-            # Collect signals from different strategies
-            for strategy in signal_strategies:
+            # Technical indicators calculation
+            indicators = {
+                'rsi': talib.RSI(close, timeperiod=14),
+                'macd': talib.MACD(close),
+                'ema_20': talib.EMA(close, timeperiod=20),
+                'ema_50': talib.EMA(close, timeperiod=50),
+                'stoch': talib.STOCH(high, low, close),
+                'adx': talib.ADX(high, low, close),
+                'atr': talib.ATR(high, low, close)
+            }
+
+            # Assign indicators to DataFrame
+            df['rsi'] = indicators['rsi']
+            if indicators['macd'] is not None:
+                df['macd'], df['macd_signal'], df['macd_hist'] = indicators['macd']
+            df['ema_20'] = indicators['ema_20']
+            df['ema_50'] = indicators['ema_50']
+            if indicators['stoch'] is not None:
+                df['stoch_k'], df['stoch_d'] = indicators['stoch']
+            df['adx'] = indicators['adx']
+            df['atr'] = indicators['atr']
+
+            # Support analysis
+            support_strength = self._simplified_support_strength(df)
+
+            # Generate signals from all strategies
+            strategies = {
+                'RSI': self._generate_rsi_signals,
+                'MACD': self._generate_macd_signals,
+                'EMA': self._generate_ema_signals,
+                'VSA': self._generate_vsa_signals,
+                'STOCH': self._generate_stoch_signals,
+                'ADX': self._generate_adx_signals
+            }
+
+            # Process each strategy
+            for strategy_name, strategy_func in strategies.items():
                 try:
-                    strategy_signals = strategy(df, market, support_strength)
-                    signals.extend(strategy_signals)
-                except Exception as strategy_error:
-                    self.logger.error(f"Signal strategy error for {strategy.__name__}: {strategy_error}")
-            
-            # Fallback signal generation if no signals
-            if not signals:
-                signals = self._generate_fallback_signals(df, market)
-            
-            # Log signal generation
-            if signals:
-                self.logger.info(f"Generated {len(signals)} signals for {market}")
-            else:
-                self.logger.info(f"No signals generated for {market}")
-            
-            return signals
-        
-        except Exception as e:
-            self.logger.error(f"Comprehensive signal generation error for {market}: {e}")
-            return []
-    def scan_for_signals(self):
-        while self.scanning:
-            try:
-                markets = self.selected_markets if self.user_choice.get() == 1 else self.change(self.choose_list.get())
+                    strategy_signals = strategy_func(df, market, support_strength)
+                    if strategy_signals:
+                        for signal in strategy_signals:
+                            signal['strategy'] = strategy_name
+                            signal['strength'] = self._calculate_signal_strength(df, signal)
+                        signals.extend(strategy_signals)
+                except Exception as e:
+                    self.logger.error(f"{strategy_name} signal generation error: {e}")
+
+            # Filter strong signals
+            strong_signals = [s for s in signals if s.get('strength', 0) > 0.6]
+
+            if strong_signals:
+                self.logger.info(f"Generated {len(strong_signals)} strong signals for {market}")
                 
-                for market in markets:
-                    if not self.scanning:
-                        break
-                        
-                    timeframe = self.choose_time.get()
-                    df = self.fetch_market_data(market, timeframe)
-                    
-                    if df is not None and not df.empty:
-                        signals = self.generate_signals(df, market)
-                        if signals:
-                            self.process_signals(market, timeframe, signals)
-                            self.store_signals_db(signals, market, timeframe)
-                            self.update_dashboard()
-                            
-                    time.sleep(0.5)
-                    
-            except Exception as e:
-                self.logger.error(f"Scanning error: {e}")
-                time.sleep(5)
+            return strong_signals
+
+        except Exception as e:
+            self.logger.error(f"Signal generation error for {market}: {e}")
+            return []
 
     def _manual_rsi_calculation(self, close_prices, period=14):
         """Manual RSI calculation as a fallback"""
@@ -964,6 +1035,7 @@ class MarketScanner(BaseScanner):
             self.logger.error(f"RSI signal generation error: {e}")
         
         return signals
+
     def _generate_ema_signals(self, df, market, support_strength):
         """Generate EMA-based signals"""
         signals = []
@@ -1093,73 +1165,113 @@ class MarketScanner(BaseScanner):
         
         return signals
 
-
-
     def process_signals(self, market, timeframe, signals):
-        for signal in signals:
-            # Get comprehensive market analysis
+        if not signals:
+            return
+
+        try:
+            # Verify Telegram credentials
+            if not self.tel_id or not self.bot_token:
+                self.logger.error("Telegram credentials not configured")
+                return
+
             df = self.fetch_market_data(market, timeframe)
-            
-            # Calculate technical indicators
+            if df is None or df.empty:
+                return
+
+            # Calculate indicators once
             df['rsi'] = talib.RSI(df['close'])
             volume_profile = self.analyze_volume_profile(df)
             support_analysis = self.define_strong_support(df, market)
             sentiment = self.analyze_market_sentiment(market)
-            
-            # Calculate signal strength (0-5 green dots)
-            strength_score = (
-                (sentiment['sentiment_score'] > 0.6) + 
-                (volume_profile['volume_ratio'] > 1.5) +
-                (support_analysis['strength'] in ['Strong', 'Very Strong']) +
-                (df['rsi'].iloc[-1] < 40) +
-                (volume_profile['volume_trend'] == 'increasing')
-            )
-            strength_indicators = "🟢" * strength_score
-            
-            signal_data = {
-                'market': market,
-                'timeframe': timeframe,
-                'signal_type': signal['type'],
-                'price': signal['price'],
-                'volume_trend': volume_profile['volume_trend'],
-                'volume_ratio': volume_profile['volume_ratio'],
-                'vwap': volume_profile['vwap'],
-                'rsi': df['rsi'].iloc[-1],
-                'support_strength': support_analysis['strength'],
-                'sentiment_score': sentiment['sentiment_score'],
-                'strength_score': strength_score,
-                'timestamp': str(datetime.now())
-            }
-            
-            self.sql_operations('insert', self.db_signals, 'Signals', **signal_data)
-            
-            message = (
-                f"{strength_indicators}\n"
-                f"🎯 Strong Buy Signal Detected!\n\n"
-                f"🪙 Coin: {market}\n"
-                f"⏰ Timeframe: {timeframe}\n"
-                f"💰 Current Price: {signal['price']:.8f}\n\n"
-                f"📊 Volume Analysis:\n"
-                f"• Trend: {volume_profile['volume_trend']}\n"
-                f"• Ratio: {volume_profile['volume_ratio']:.2f}x\n"
-                f"• VWAP: {volume_profile['vwap']:.2f}\n\n"
-                f"💪 Support Analysis:\n"
-                f"• Strength: {support_analysis['strength']}\n"
-                f"• Level: {support_analysis.get('support_level', 0):.8f}\n\n"
-                f"📈 Technical Indicators:\n"
-                f"• RSI: {signal_data['rsi']:.2f}\n"
-                f"• Signal Type: {signal['type']}\n"
-                f"• Sentiment Score: {sentiment['sentiment_score']:.2f}\n\n"
-                f"🎯 Entry Zone: {signal['price']:.8f} - {signal['price']*1.01:.8f}"
-            )
-            
+            vsa_signals = self.analyze_vsa_signals(df)
+            patterns = self.detect_chart_patterns(df)
+
+            for signal in signals:
+                strength_score = (
+                    (sentiment['sentiment_score'] > 0.6) +
+                    (volume_profile['volume_ratio'] > 1.5) +
+                    (support_analysis['strength'] in ['Strong', 'Very Strong']) +
+                    (df['rsi'].iloc[-1] < 40) +
+                    (volume_profile['volume_trend'] == 'increasing')
+                )
+
+                if strength_score < 2:
+                    continue
+
+                signal_data = {
+                    'market': market,
+                    'timeframe': timeframe,
+                    'signal_type': signal['type'],
+                    'price': signal['price'],
+                    'volume_trend': volume_profile['volume_trend'],
+                    'volume_ratio': volume_profile['volume_ratio'],
+                    'vwap': volume_profile['vwap'],
+                    'rsi': df['rsi'].iloc[-1],
+                    'support_strength': support_analysis['strength'],
+                    'support_level': support_analysis.get('support_level', 0),
+                    'sentiment_score': sentiment['sentiment_score'],
+                    'strength_score': strength_score,
+                    'timestamp': str(datetime.now())
+                }
+
+                # Store signal
+                self.sql_operations('insert', self.db_signals, 'Signals', **signal_data)
+
+                # Prepare alert message
+                strength_indicators = "🟢" * strength_score + "⚪" * (5 - strength_score)
+                message = (
+                    f"{strength_indicators}\n"
+                    f"🎯 Strong Trading Signal!\n\n"
+                    f"🪙 Coin: {market}\n"
+                    f"⏰ Timeframe: {timeframe}\n"
+                    f"💰 Price: {signal['price']:.8f}\n\n"
+                    f"📊 Volume Analysis:\n"
+                    f"• Trend: {volume_profile['volume_trend']}\n"
+                    f"• Ratio: {volume_profile['volume_ratio']:.2f}x\n"
+                    f"• VWAP: {volume_profile['vwap']:.2f}\n"
+                    f"• VSA: {', '.join([s['type'] for s in vsa_signals]) if vsa_signals else 'None'}\n\n"
+                    f"💪 Support Analysis:\n"
+                    f"• Strength: {support_analysis['strength']}\n"
+                    f"• Level: {support_analysis.get('support_level', 0):.8f}\n"
+                    f"• Patterns: {', '.join(patterns) if patterns else 'None'}\n\n"
+                    f"📈 Indicators:\n"
+                    f"• RSI: {signal_data['rsi']:.2f}\n"
+                    f"• Type: {signal['type']}\n"
+                    f"• Sentiment: {sentiment['sentiment_score']:.2f}\n\n"
+                    f"🎯 Zones:\n"
+                    f"• Entry: {signal['price']:.8f}\n"
+                    f"• Target: {signal['price']*1.02:.8f}\n"
+                    f"• Stop: {support_analysis.get('support_level', signal['price']*0.99):.8f}"
+                )
+
+                # Direct Telegram send
+                url = f'https://api.telegram.org/bot{self.bot_token}/sendMessage'
+                params = {
+                    'chat_id': self.tel_id,
+                    'text': message,
+                    'parse_mode': 'HTML'
+                }
+
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        response = requests.post(url, params=params, timeout=10)
+                        if response.status_code == 200:
+                            self.logger.info(f"Alert sent for {market}: {signal['type']}")
+                            break
+                        else:
+                            self.logger.error(f"Failed to send alert: {response.text}")
+                    except Exception as e:
+                        self.logger.error(f"Telegram error: {e}")
+                        if attempt < max_retries - 1:
+                            time.sleep(1)
+
             if hasattr(self, 'master') and self.master:
                 self.master.after(0, self.update_dashboard)
-            
-            self.logger.info(f"Processing signal for {market}: {signal['type']}")
-            self.send_telegram_update(message)
 
-
+        except Exception as e:
+            self.logger.error(f"Signal processing error: {e}")
 
     def monitor_price_action(self):
         while self.scanning:
@@ -1199,14 +1311,29 @@ class MarketScanner(BaseScanner):
                 params = {
                     'chat_id': self.tel_id,
                     'text': message,
-                    'parse_mode': 'HTML'
+                    'parse_mode': 'HTML',
+                    'disable_web_page_preview': True
                 }
-                response = requests.post(url, params=params)
-                if not response.ok:
+                
+                response = requests.post(url, params=params, timeout=10)
+                
+                if response.ok:
+                    self.logger.info("Telegram message sent successfully")
+                    return True
+                else:
                     self.logger.error(f"Telegram API error: {response.text}")
+                    return False
+                    
+            except requests.Timeout:
+                self.logger.error("Telegram request timed out")
+                return False
             except Exception as e:
                 self.logger.error(f"Telegram error: {e}")
                 time.sleep(5)
+                return False
+        
+        self.logger.error("Telegram credentials not configured")
+        return False
 
     def detect_chart_patterns(self, df):
         patterns = []

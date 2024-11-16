@@ -273,26 +273,39 @@ class ScannerGUI(MarketScanner):
 
     def start_scanning(self):
         if not self.scanning:
-            # Initialize exchange connection with proper configuration
-            self.binance = ccxt.binance({
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'spot',
-                    'adjustForTimeDifference': True,
-                    'recvWindow': 5000
-                }
-            })
-            
-            self.scanning = True
-            self.status_label.config(text="Scanner Status: Running", fg='green')
-            
-            # Start scanning and monitoring threads
-            threading.Thread(target=self.scan_for_signals, daemon=True).start()
-            threading.Thread(target=self.periodic_report, daemon=True).start()
-            
-            # Update UI and notify
-            self.update_dashboard()
-            self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
+            try:
+                # Initialize exchange
+                self.binance = ccxt.binance({
+                    'enableRateLimit': True,
+                    'options': {
+                        'defaultType': 'spot',
+                        'adjustForTimeDifference': True,
+                        'recvWindow': 5000
+                    }
+                })
+                
+                # Verify exchange connection
+                self.binance.load_markets()
+                
+                self.scanning = True
+                self.status_label.config(text="Scanner Status: Running", fg='green')
+                
+                # Start threads in correct order
+                scanning_thread = threading.Thread(target=self.scan_for_signals, daemon=True)
+                scanning_thread.start()
+                
+                # Wait for scanning to initialize
+                time.sleep(2)
+                
+                # Start monitoring threads
+                threading.Thread(target=self.periodic_report, daemon=True).start()
+                threading.Thread(target=self.monitor_signal_health, daemon=True).start()
+                
+                self.update_dashboard()
+                self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
+                
+            except Exception as e:
+                self.logger.error(f"Startup error: {e}")
 
 
     def update_dashboard(self):
