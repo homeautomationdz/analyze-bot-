@@ -4951,3 +4951,6 @@
 2024-11-16 00:24:02,682 - ERROR - Signal processing error: -1
 2024-11-16 00:24:03,307 - INFO - Generated 2 strong signals for TURBO/USDT
 2024-11-16 00:24:03,307 - INFO - Initial signals generated for TURBO/USDT: 2
+2024-11-16 20:03:20,260 - ERROR - Telegram error: name 'requests' is not defined
+2024-11-16 20:03:45,434 - ERROR - Telegram error: name 'requests' is not defined
+2024-11-16 20:04:17,704 - ERROR - Telegram error: name 'requests' is not defined

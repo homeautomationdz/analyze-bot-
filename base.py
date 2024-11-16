@@ -29,7 +29,7 @@ class BaseScanner(tk.Frame):
         # Window configuration
         if self.master:
             self.master.title("Market Scanner")
-            self.master.configure(bg="#eeeeee")
+            self.master.configure(bg="#000000")
         
         # System configuration
         self.tm = int(datetime.now().timestamp())
@@ -139,25 +139,7 @@ class BaseScanner(tk.Frame):
             cursor = conn.cursor()
 
             if operation == 'create':
-                if table_name == 'Signals':
-                    sql_query = """
-                    CREATE TABLE IF NOT EXISTS Signals (
-                        market TEXT,
-                        timeframe TEXT,
-                        signal_type TEXT,
-                        price REAL,
-                        volume_trend TEXT,
-                        volume_ratio REAL,
-                        vwap REAL,
-                        rsi REAL,
-                        support_strength TEXT,
-                        support_level REAL,
-                        sentiment_score REAL,
-                        strength_score INTEGER,
-                        timestamp TEXT
-                    )
-                    """
-                elif table_name == 'userinfo':
+                if table_name == 'userinfo':
                     sql_query = """
                     CREATE TABLE IF NOT EXISTS userinfo (
                         name TEXT,
@@ -166,6 +148,19 @@ class BaseScanner(tk.Frame):
                         phrase TEXT,
                         tel_id TEXT,
                         tel_token TEXT
+                    )
+                    """
+                elif table_name == 'Signals':
+                    sql_query = """
+                    CREATE TABLE IF NOT EXISTS Signals (
+                        market TEXT,
+                        timeframe TEXT,
+                        signal_type TEXT,
+                        price REAL,
+                        volume_trend TEXT,
+                        vwap REAL,
+                        rsi REAL,
+                        timestamp TEXT
                     )
                     """
                 cursor.execute(sql_query)
@@ -190,7 +185,6 @@ class BaseScanner(tk.Frame):
         finally:
             if conn:
                 conn.close()
-
 
 
     def check_internet_connection(self):
@@ -441,14 +435,16 @@ class BaseScanner(tk.Frame):
 
     def check_rate_limit(self):
         current_time = time.time()
-        if current_time - self.rate_limits['last_reset'] >= 60:
+        if current_time - self.rate_limits['last_reset'] >= self.rate_limits['cooldown_period']:
             self.rate_limits['api_calls'] = 0
             self.rate_limits['last_reset'] = current_time
-            
+        
         if self.rate_limits['api_calls'] >= self.rate_limits['max_calls_per_minute']:
-            sleep_time = 60 - (current_time - self.rate_limits['last_reset'])
+            sleep_time = self.rate_limits['cooldown_period'] - (current_time - self.rate_limits['last_reset'])
             if sleep_time > 0:
                 time.sleep(sleep_time)
+        
+        self.rate_limits['api_calls'] += 1
 
 
     def con(self, file_name):

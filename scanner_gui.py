@@ -6,7 +6,6 @@ import sqlite3
 from datetime import datetime
 import time
 import csv
-import os
 from market_app import MarketApp
 import talib
 import pandas as pd
@@ -43,7 +42,6 @@ class ScannerGUI(MarketScanner):
         # Setup GUI and authentication
         self.setup_gui()
         self.auth = self.user_auth(self.db_connect, "userinfo")
-
 
 
 
@@ -232,93 +230,48 @@ class ScannerGUI(MarketScanner):
         self.status_label = tk.Label(self.master, text="Scanner Status: Stopped",
                                    font=('Arial', 10), fg='red')
         self.status_label.grid(row=3, column=0, columnspan=4)
-        
-        self.setup_dashboard()
-        self.setup_criteria_controls()
-
-    def setup_dashboard(self):
-        self.dashboard_frame = ttk.Frame(self.master)
-        self.dashboard_frame.grid(row=4, column=0, columnspan=4, sticky='nsew')
-
-        self.market_label = ttk.Label(self.dashboard_frame, text="Market")
-        self.score_label = ttk.Label(self.dashboard_frame, text="Score")
-        self.market_label.grid(row=0, column=0, padx=5, pady=5)
-        self.score_label.grid(row=0, column=1, padx=5, pady=5)
-
-        self.market_listbox = tk.Listbox(self.dashboard_frame, height=10, width=20)
-        self.score_listbox = tk.Listbox(self.dashboard_frame, height=10, width=10)
-        self.market_listbox.grid(row=1, column=0, padx=5, pady=5)
-        self.score_listbox.grid(row=1, column=1, padx=5, pady=5)
-
-    def setup_criteria_controls(self):
-        self.criteria_frame = ttk.Frame(self.master)
-        self.criteria_frame.grid(row=5, column=0, columnspan=4, sticky='nsew')
-
-        self.trend_weight = tk.DoubleVar(value=0.4)
-        self.volume_weight = tk.DoubleVar(value=0.3)
-        self.rsi_weight = tk.DoubleVar(value=0.2)
-        self.support_weight = tk.DoubleVar(value=0.1)
-
-        ttk.Label(self.criteria_frame, text="Trend Weight").grid(row=0, column=0)
-        ttk.Scale(self.criteria_frame, variable=self.trend_weight, from_=0, to=1, orient='horizontal').grid(row=0, column=1)
-
-        ttk.Label(self.criteria_frame, text="Volume Weight").grid(row=1, column=0)
-        ttk.Scale(self.criteria_frame, variable=self.volume_weight, from_=0, to=1, orient='horizontal').grid(row=1, column=1)
-
-        ttk.Label(self.criteria_frame, text="RSI Weight").grid(row=2, column=0)
-        ttk.Scale(self.criteria_frame, variable=self.rsi_weight, from_=0, to=1, orient='horizontal').grid(row=2, column=1)
-
-        ttk.Label(self.criteria_frame, text="Support Weight").grid(row=3, column=0)
-        ttk.Scale(self.criteria_frame, variable=self.support_weight, from_=0, to=1, orient='horizontal').grid(row=3, column=1)
-
     def start_scanning(self):
         if not self.scanning:
+            # Initialize exchange connection
+            self.binance = ccxt.binance({
+                'enableRateLimit': True,
+                'options': {'defaultType': 'spot'}
+            })
+            
+            self.scanning = True
+            self.status_label.config(text="Scanner Status: Running", fg='green')
+            
+            # Start scanning thread
+            threading.Thread(target=self.scan_for_signals, daemon=True).start()
+            
+            # Notify start
+            self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
+
+    def scan_for_signals(self):
+        while self.scanning:
             try:
-                # Initialize exchange
-                self.binance = ccxt.binance({
-                    'enableRateLimit': True,
-                    'options': {
-                        'defaultType': 'spot',
-                        'adjustForTimeDifference': True,
-                        'recvWindow': 5000
-                    }
-                })
+                # Get market list
+                markets = self.selected_markets if self.user_choice.get() == 1 else self.change(self.choose_list.get())
                 
-                # Verify exchange connection
-                self.binance.load_markets()
-                
-                self.scanning = True
-                self.status_label.config(text="Scanner Status: Running", fg='green')
-                
-                # Start threads in correct order
-                scanning_thread = threading.Thread(target=self.scan_for_signals, daemon=True)
-                scanning_thread.start()
-                
-                # Wait for scanning to initialize
-                time.sleep(2)
-                
-                # Start monitoring threads
-                threading.Thread(target=self.periodic_report, daemon=True).start()
-                threading.Thread(target=self.monitor_signal_health, daemon=True).start()
-                
-                self.update_dashboard()
-                self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
-                
+                # Process each market
+                for market in markets:
+                    if not self.scanning:
+                        break
+                        
+                    timeframe = self.choose_time.get()
+                    df = self.fetch_market_data(market, timeframe)
+                    
+                    if df is not None and not df.empty:
+                        signals = self.generate_signals(df)
+                        if signals:
+                            self.process_signals(market, timeframe, signals)
+                            
+                    time.sleep(0.5)
+
             except Exception as e:
-                self.logger.error(f"Startup error: {e}")
+                print(f"Scanning error: {e}")
+                time.sleep(5)
 
-
-    def update_dashboard(self):
-        self.market_listbox.delete(0, tk.END)
-        self.score_listbox.delete(0, tk.END)
-        
-        for market in self.selected_markets:
-            performance = self.analyze_market_performance(market)
-            if performance:
-                self.market_listbox.insert(tk.END, market)
-                self.score_listbox.insert(tk.END, f"{performance['score']:.2f}")
-                
-        self.master.update()  # Force UI update
 
     def stop_scanning(self):
         self.scanning = False
@@ -370,68 +323,128 @@ class ScannerGUI(MarketScanner):
         sorted_markets = [symbol[0] for symbol in sorted_symbols]
         return sorted_markets
 
+
     def change(self, param=None):
         asset = 'USDT'
-        max_retries = 3
-        retry_delay = 2
-
-        for attempt in range(max_retries):
-            try:
-                tickers = self.binance.fetch_tickers()
-                tic = pd.DataFrame(tickers).transpose()
-                tic = tic[tic.index.str.contains(f"{asset}")]
-                df = tic.drop(['vwap', 'askVolume', 'previousClose', 'symbol', 'timestamp', 
-                            'info', 'quoteVolume', 'datetime', 'bidVolume'], axis=1)
+        try:
+            tickers = self.binance.fetch_tickers()
+            tic = pd.DataFrame(tickers).transpose()
+            tic = tic[tic.index.str.contains(f"{asset}")]
+            df = tic.drop(['vwap', 'askVolume', 'previousClose', 'symbol', 'timestamp', 
+                          'info', 'quoteVolume', 'datetime', 'bidVolume'], axis=1)
+            
+            if param == 'Best-vol':
+                df['volch'] = df['baseVolume'] * df['last']
+                df = df[df['volch'] > 10000]
+                df = df.sort_values('volch', ascending=False)
+                return df.head(100).index.tolist()
                 
-                if param == 'Best-vol':
-                    df['volch'] = df['baseVolume'] * df['last']
-                    df = df[df['volch'] > 10000]
-                    df = df.sort_values('volch', ascending=False)
-                    return df.head(100).index.tolist()
-                    
-                elif param == 'Last-vol':
-                    df['volch'] = df['baseVolume'] * df['last']
-                    df = df.sort_values('volch', ascending=False)
-                    return df.head(50).index.tolist()
-                    
-                elif param == 'Top':
-                    df = df.sort_values('percentage', ascending=False)
-                    return df.head(100).index.tolist()
-                    
-                elif param == 'Down':
-                    df = df.sort_values('percentage', ascending=True)
-                    return df.head(100).index.tolist()
+            elif param == 'Last-vol':
+                df['volch'] = df['baseVolume'] * df['last']
+                df = df.sort_values('volch', ascending=False)
+                return df.head(50).index.tolist()
+                
+            elif param == 'Top':
+                df = df.sort_values('percentage', ascending=False)
+                return df.head(100).index.tolist()
+                
+            elif param == 'Down':
+                df = df.sort_values('percentage', ascending=True)
+                return df.head(100).index.tolist()
 
-            except Exception as e:
-                self.logger.error(f"Error in change method: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                    continue
-                return []
+        except Exception as e:
+            self.logger.error(f"Error in change method: {e}")
+            return []
+
+  
+
+    def process_signals(self, market, timeframe, signals):
+        for signal in signals:
+            # Store signal in database
+            self.sql_operations('insert', self.db_signals, 'Signals', 
+                            market=market,
+                            timeframe=timeframe,
+                            signal_type=signal['type'],
+                            price=signal['price'],
+                            timestamp=str(datetime.now()))
+            
+            # Send notification
+            message = f"Signal: {signal['type']}\nMarket: {market}\nTimeframe: {timeframe}\nPrice: {signal['price']}"
+            self.send_telegram_update(message)
+            
 
 
+    def analyze_market(self, market, timeframe):
+        try:
+            df = self.fetch_market_data(market, timeframe)
+            if df is not None and not df.empty:
+                # Calculate technical indicators
+                df['rsi'] = talib.RSI(df['close'])
+                df['macd'], df['macd_signal'], df['macd_hist'] = talib.MACD(df['close'])
+                df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
+                df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
+                
+                # Volume analysis
+                volume_profile = self.analyze_volume_profile(df)
+                
+                # Generate signals
+                signals = self.generate_signals(df)
+                
+                # Add volume context to signals
+                if volume_profile and signals:
+                    for signal in signals:
+                        signal['volume_context'] = volume_profile['volume_trend']
+                        signal['vwap'] = volume_profile['vwap']
+                
+                if signals:
+                    for signal in signals:
+                        # Enhanced message with more context
+                        message = (
+                            f"🔔 Signal Alert!\n"
+                            f"Market: {market}\n"
+                            f"Signal: {signal['type']}\n"
+                            f"Price: {signal['price']}\n"
+                            f"VWAP: {signal.get('vwap', 'N/A')}\n"
+                            f"Volume Trend: {signal.get('volume_context', 'N/A')}\n"
+                            f"RSI: {df['rsi'].iloc[-1]:.2f}\n"
+                            f"Timeframe: {timeframe}"
+                        )
+                        self.send_telegram_update(message)
+                        
+                        # Store enhanced signal data
+                        self.sql_operations('insert', self.db_signals, 'Signals',
+                                        market=market,
+                                        timeframe=timeframe,
+                                        signal_type=signal['type'],
+                                        price=signal['price'],
+                                        volume_trend=signal.get('volume_context', ''),
+                                        vwap=signal.get('vwap', 0.0),
+                                        rsi=df['rsi'].iloc[-1],
+                                        timestamp=str(datetime.now()))
+                        
+        except Exception as e:
+            self.logger.error(f"Error analyzing market {market}: {e}")
 
 
-
-    def send_opportunity_report(self):
-        # Use the correct method name
-        best_market = self.find_best_buy_opportunity()
-        
-        if best_market:
-            report = (
-                f"🌟 Top Trading Opportunity 🌟\n\n"
-                f"Market: {best_market['market']}\n"
-                f"Score: {best_market['score']:.2f}\n"
-                f"Sentiment: {best_market['sentiment']:.2f}\n"
-                f"Support: {best_market['support_strength']}\n"
-            )
-            self.send_telegram_update(report)
-
-    def periodic_report(self):
+    def monitor_price_action(self):
         while self.scanning:
-            self.send_opportunity_report()
-            time.sleep(3600)  # Send report every hour
+            for market in self.selected_markets:
+                df = self.fetch_market_data(market, self.choose_time.get())
+                if self.detect_signal(df):
+                    self.process_signal(market, df)
+            time.sleep(self.rate_config['window'])
 
+    def filter_markets(self, markets):
+        filtered = []
+        for market in markets:
+            df = self.fetch_market_data(market, self.choose_time.get())
+            if df is not None:
+                volume = df['volume'].mean()
+                volatility = df['close'].pct_change().std()
+                
+                if volume > self.min_volume and volatility > self.min_volatility:
+                    filtered.append(market)
+        return filtered
 def main():
     root = tk.Tk()
     app = ScannerGUI(root)
@@ -439,4 +452,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
