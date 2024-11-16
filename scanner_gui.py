@@ -247,30 +247,6 @@ class ScannerGUI(MarketScanner):
             # Notify start
             self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
 
-    def scan_for_signals(self):
-        while self.scanning:
-            try:
-                # Get market list
-                markets = self.selected_markets if self.user_choice.get() == 1 else self.change(self.choose_list.get())
-                
-                # Process each market
-                for market in markets:
-                    if not self.scanning:
-                        break
-                        
-                    timeframe = self.choose_time.get()
-                    df = self.fetch_market_data(market, timeframe)
-                    
-                    if df is not None and not df.empty:
-                        signals = self.generate_signals(df)
-                        if signals:
-                            self.process_signals(market, timeframe, signals)
-                            
-                    time.sleep(0.5)
-
-            except Exception as e:
-                print(f"Scanning error: {e}")
-                time.sleep(5)
 
 
     def stop_scanning(self):
@@ -357,21 +333,6 @@ class ScannerGUI(MarketScanner):
             return []
 
   
-
-    def process_signals(self, market, timeframe, signals):
-        for signal in signals:
-            # Store signal in database
-            self.sql_operations('insert', self.db_signals, 'Signals', 
-                            market=market,
-                            timeframe=timeframe,
-                            signal_type=signal['type'],
-                            price=signal['price'],
-                            timestamp=str(datetime.now()))
-            
-            # Send notification
-            message = f"Signal: {signal['type']}\nMarket: {market}\nTimeframe: {timeframe}\nPrice: {signal['price']}"
-            self.send_telegram_update(message)
-            
 
 
     def analyze_market(self, market, timeframe):

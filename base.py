@@ -85,10 +85,17 @@ class BaseScanner(tk.Frame):
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
-        file_handler = logging.FileHandler(log_file)
+        
+        # File handler with UTF-8 encoding
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        
+        # Console handler with UTF-8 encoding
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        
         self.logger.addHandler(file_handler)
-
+        self.logger.addHandler(console_handler)
     def create_binance_object(self):
         if not self.valid:
             return None

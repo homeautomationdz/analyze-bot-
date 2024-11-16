@@ -46,13 +46,28 @@ class MarketScanner(BaseScanner):
                     df = self.fetch_market_data(market, timeframe)
 
                     if df is not None and not df.empty:
+                        # Original signal generation
                         signals = self.generate_signals(df)
                         validated_signals = self.validate_signals_with_trailing(signals, market)
                         filtered_signals = self.filter_signals(validated_signals, market)
 
+                        # New strategy signals
+                        htf_wick_signal = self.detect_htf_support_wick(market)
+                        drop_recovery_signal = self.detect_support_drop_recovery(market)
+
+                        # Combine all signals
+                        all_signals = []
                         if filtered_signals:
-                            self.process_signals(market, timeframe, filtered_signals)
-                            self.store_signals_db(filtered_signals, market, timeframe)
+                            all_signals.extend(filtered_signals)
+                        if htf_wick_signal:
+                            all_signals.append(htf_wick_signal)
+                        if drop_recovery_signal:
+                            all_signals.append(drop_recovery_signal)
+
+                        # Process all signals together
+                        if all_signals:
+                            self.process_signals(market, timeframe, all_signals)
+                            self.store_signals_db(all_signals, market, timeframe)
                             self.update_trailing_stops(market, df['close'].iloc[-1])
 
                     time.sleep(0.1)
@@ -75,6 +90,30 @@ class MarketScanner(BaseScanner):
                     validated.append(signal)
 
         return validated
+    def filter_signals(self, signals, market):
+        filtered = []
+        for signal in signals:
+            # Apply volume filter
+            if self.check_volume_threshold(market):
+                # Apply sentiment filter
+                sentiment = self.analyze_market_sentiment(market)
+                if sentiment['sentiment_score'] >= 0.6:
+                    # Add additional signal metadata
+                    signal['sentiment'] = sentiment
+                    signal['volume_profile'] = self.analyze_volume_profile(
+                        self.fetch_market_data(market, '1h', limit=100)
+                    )
+                    filtered.append(signal)
+        return filtered
+
+    def check_volume_threshold(self, market):
+        try:
+            ticker = self.binance.fetch_ticker(market)
+            volume = float(ticker['quoteVolume'])
+            return volume >= self.signal_config['min_volume']
+        except Exception as e:
+            self.logger.error(f"Volume check error for {market}: {e}")
+            return False
 
     def update_trailing_stops(self, market, current_price):
         if market in self.trailing_data['active_signals']:
@@ -197,6 +236,87 @@ class MarketScanner(BaseScanner):
             'volume_sma': volume_sma.iloc[-1]
         }
 
+    def detect_htf_support_wick(self, market):
+        # Get higher timeframe supports
+        htf_data = {
+            '4h': self.fetch_market_data(market, '4h', limit=100),
+            '1d': self.fetch_market_data(market, '1d', limit=100),
+            '1w': self.fetch_market_data(market, '1w', limit=100)
+        }
+        
+        # Get lower timeframe data
+        ltf_data = {
+            '15m': self.fetch_market_data(market, '15m', limit=100),
+            '30m': self.fetch_market_data(market, '30m', limit=100)
+        }
+        
+        # Find support levels on higher timeframes
+        supports = {}
+        for tf, df in htf_data.items():
+            if df is not None:
+                supports[tf] = self.define_strong_support(df, market)
+        
+        # Check for wicks on lower timeframes near HTF supports
+        for tf, df in ltf_data.items():
+            if df is not None:
+                last_candle = df.iloc[-1]
+                wick_size = (last_candle['open'] - last_candle['low']) / last_candle['open']
+                
+                # Check if price is near any HTF support with significant wick
+                for htf, support_levels in supports.items():
+                    if support_levels['strength'] == 'Strong' or support_levels['strength'] == 'Very Strong':
+                        for support_price in support_levels['details']['price_action_supports']:
+                            if (abs(last_candle['low'] - support_price['price']) / support_price['price'] < 0.01 and 
+                                wick_size > 0.003):  # 0.3% wick size threshold
+                                return {
+                                    'type': 'HTF_SUPPORT_WICK',
+                                    'support_tf': htf,
+                                    'wick_tf': tf,
+                                    'support_price': support_price['price'],
+                                    'wick_size': wick_size,
+                                    'strength': support_levels['strength']
+                                }
+        return None
+    def detect_support_drop_recovery(self, market):
+        # Get daily data
+        daily_data = self.fetch_market_data(market, '1d', limit=100)
+        if daily_data is None:
+            return None
+            
+        # Find last two higher supports
+        supports = self.define_strong_support(daily_data, market)
+        support_levels = sorted([s['price'] for s in supports['details']['price_action_supports']], reverse=True)
+        
+        if len(support_levels) < 2:
+            return None
+        
+        # Check for 3-day drop
+        last_3_days = daily_data.tail(3)
+        if all(last_3_days['close'] < support_levels[1]):
+            # Check if price is approaching next support
+            current_price = last_3_days['close'].iloc[-1]
+            if len(support_levels) > 2:
+                next_support = support_levels[2]
+                
+                # Check for wick formation near next support
+                if (abs(current_price - next_support) / next_support < 0.02):  # Within 2% of support
+                    wick_size = (last_3_days['open'].iloc[-1] - last_3_days['low'].iloc[-1]) / last_3_days['open'].iloc[-1]
+                    
+                    if wick_size > 0.003:  # 0.3% wick size threshold
+                        return {
+                            'type': 'SUPPORT_DROP_RECOVERY',
+                            'dropped_support': support_levels[1],
+                            'next_support': next_support,
+                            'days_below': 3,
+                            'wick_size': wick_size,
+                            'strength': supports['strength']
+                        }
+        
+        return None
+
+
+
+
     def analyze_vsa_signals(self, df):
         vsa_signals = []
         
@@ -236,6 +356,32 @@ class MarketScanner(BaseScanner):
             })
             
         return vsa_signals
+    def apply_vsa_support_analysis(self, df):
+        if df is None or df.empty:
+            return 0
+            
+        vsa_score = 0
+        
+        # Calculate volume metrics
+        df['volume_ma'] = df['volume'].rolling(window=20).mean()
+        df['price_range'] = df['high'] - df['low']
+        df['range_ma'] = df['price_range'].rolling(window=20).mean()
+        
+        # Analyze last few candles
+        last_candles = df.tail(3)
+        
+        for _, candle in last_candles.iterrows():
+            # High volume with narrow range near support (absorption)
+            if (candle['volume'] > candle['volume_ma'] * 2 and 
+                candle['price_range'] < candle['range_ma'] * 0.5):
+                vsa_score += 1
+                
+            # Strong bullish close with above average volume
+            if (candle['close'] > candle['open'] and
+                candle['volume'] > candle['volume_ma'] * 1.5):
+                vsa_score += 0.5
+                
+        return vsa_score
 
     # Add new support analysis methods here
     def define_strong_support(self, df, market):
@@ -456,15 +602,66 @@ class MarketScanner(BaseScanner):
 
     def process_signals(self, market, timeframe, signals):
         for signal in signals:
-            self.sql_operations('insert', self.db_signals, 'Signals',
-                                market=market,
-                                timeframe=timeframe,
-                                signal_type=signal['type'],
-                                price=signal['price'],
-                                timestamp=str(datetime.now()))
+            try:
+                # Log signal detection
+                self.logger.info(f"New signal detected for {market}: {signal['type']}")
+                
+                # Store in database first
+                self.store_signals_db([signal], market, timeframe)
+                self.logger.info(f"Signal stored in database for {market}")
+                
+                # Construct message based on signal type
+                if signal['type'] == 'HTF_SUPPORT_WICK':
+                    message = (
+                        f"🎯 HTF Support Wick Signal\n"
+                        f"Market: {market}\n"
+                        f"Support Timeframe: {signal['support_tf']}\n"
+                        f"Wick Timeframe: {signal['wick_tf']}\n"
+                        f"Support Price: {signal['support_price']:.8f}\n"
+                        f"Wick Size: {signal['wick_size']:.2%}\n"
+                        f"Support Strength: {signal['strength']}"
+                    )
+                elif signal['type'] == 'SUPPORT_DROP_RECOVERY':
+                    message = (
+                        f"📊 Support Drop Recovery Signal\n"
+                        f"Market: {market}\n"
+                        f"Dropped Support: {signal['dropped_support']:.8f}\n"
+                        f"Next Support: {signal['next_support']:.8f}\n"
+                        f"Days Below: {signal['days_below']}\n"
+                        f"Wick Size: {signal['wick_size']:.2%}\n"
+                        f"Support Strength: {signal['strength']}"
+                    )
+                else:
+                    message = (
+                        f"🔔 Signal Alert!\n"
+                        f"Market: {market}\n"
+                        f"Signal: {signal['type']}\n"
+                        f"Price: {signal.get('price', 'N/A')}\n"
+                        f"Timeframe: {timeframe}"
+                    )
+                
+                # Send telegram notification with logging
+                if self.tel_id and self.bot_token:
+                    self.logger.info(f"Sending signal notification for {market}")
+                    self.send_telegram_update(message)
+                    self.logger.info(f"Signal notification sent for {market}")
+                
+            except Exception as e:
+                self.logger.error(f"Signal processing error for {market}: {e}")
 
-            message = f"Signal: {signal['type']}\nMarket: {market}\nTimeframe: {timeframe}\nPrice: {signal['price']}"
-            self.send_telegram_update(message)
+
+    def store_signals_db(self, signals, market, timeframe):
+        for signal in signals:
+            self.sql_operations('insert', self.db_signals, 'Signals',
+                market=market,
+                timeframe=timeframe,
+                signal_type=signal['type'],
+                price=signal.get('price', 0),
+                volume_trend=signal.get('volume_context', ''),
+                vwap=signal.get('vwap', 0.0),
+                rsi=signal.get('rsi', 0.0),
+                timestamp=str(datetime.now())
+            )
 
     def send_telegram_update(self, message):
         if self.tel_id and self.bot_token:
@@ -475,8 +672,11 @@ class MarketScanner(BaseScanner):
                     'text': message,
                     'parse_mode': 'HTML'
                 }
+                self.logger.info(f"Sending telegram message: {message}")
                 response = requests.post(url, params=params)
-                if not response.ok:
+                if response.ok:
+                    self.logger.info("Telegram message sent successfully")
+                else:
                     self.logger.error(f"Telegram API error: {response.text}")
             except Exception as e:
                 self.logger.error(f"Telegram error: {e}")
