@@ -43,8 +43,6 @@ class ScannerGUI(MarketScanner):
         self.setup_gui()
         self.auth = self.user_auth(self.db_connect, "userinfo")
 
-
-
     def user_auth(self, file_name, table_name):
         self.auth = tk.Toplevel()
         self.auth.title('User Authentication')
@@ -231,6 +229,160 @@ class ScannerGUI(MarketScanner):
                                    font=('Arial', 10), fg='red')
         self.status_label.grid(row=3, column=0, columnspan=4)
 
+    def create_advanced_visualization_panel(self):
+        viz_frame = ttk.LabelFrame(self.dashboard_frame, text="Advanced Visualization")
+        viz_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
+        
+        # Market Depth Visualization
+        self.create_depth_chart(viz_frame)
+        
+        # Volume Profile Analysis
+        self.create_volume_profile_chart(viz_frame)
+        
+        # Order Flow Heatmap
+        self.create_order_flow_heatmap(viz_frame)
+        
+        return viz_frame
+
+    def create_depth_chart(self, parent):
+        depth_frame = ttk.Frame(parent)
+        depth_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        
+        self.depth_canvas = tk.Canvas(depth_frame, width=400, height=300, bg='black')
+        self.depth_canvas.grid(row=0, column=0, sticky='nsew')
+        
+        # Add controls
+        ttk.Button(depth_frame, text="Update Depth", 
+                command=self.update_depth_chart).grid(row=1, column=0)
+
+    def create_volume_profile_chart(self, parent):
+        profile_frame = ttk.Frame(parent)
+        profile_frame.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
+        
+        self.profile_canvas = tk.Canvas(profile_frame, width=400, height=300, bg='black')
+        self.profile_canvas.grid(row=0, column=0, sticky='nsew')
+
+    def create_order_flow_heatmap(self, parent):
+        heatmap_frame = ttk.Frame(parent)
+        heatmap_frame.grid(row=0, column=2, padx=5, pady=5, sticky='nsew')
+        
+        self.heatmap_canvas = tk.Canvas(heatmap_frame, width=400, height=300, bg='black')
+        self.heatmap_canvas.grid(row=0, column=0, sticky='nsew')
+        self.create_advanced_visualization_panel()
+
+
+    def create_advanced_market_analysis_panel(self):
+        analysis_frame = ttk.LabelFrame(self.dashboard_frame, text="Advanced Market Analysis")
+        analysis_frame.grid(row=6, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
+        
+        # Order Flow Display
+        self.create_order_flow_display(analysis_frame)
+        
+        # Institutional Activity Display
+        self.create_institutional_display(analysis_frame)
+        
+        # Volume Profile Display
+        self.create_volume_profile_display(analysis_frame)
+        
+        return analysis_frame
+    def create_order_flow_display(self, parent):
+        order_flow_frame = ttk.LabelFrame(parent, text="Order Flow Analysis")
+        order_flow_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        
+        # Create order flow visualization
+        self.order_flow_canvas = tk.Canvas(order_flow_frame, width=300, height=200)
+        self.order_flow_canvas.grid(row=0, column=0, sticky='nsew')
+        
+        # Add controls
+        ttk.Button(order_flow_frame, text="Update", 
+                command=self.update_order_flow).grid(row=1, column=0)
+    def update_market_analysis(self):
+        if self.scanning:
+            market = self.get_selected_market()
+            timeframe = self.choose_time.get()
+            
+            # Update order flow analysis
+            order_flow = self.analyze_enhanced_order_flow(market)
+            self.update_order_flow_display(order_flow)
+            
+            # Update institutional activity
+            inst_activity = self.detect_institutional_activity(market)
+            self.update_institutional_display(inst_activity)
+            
+            # Update volume profile
+            volume_profile = self.enhanced_volume_profile(market, timeframe)
+            self.update_volume_profile_display(volume_profile)
+            
+            # Generate alerts for significant events
+            self.check_and_alert_significant_events(order_flow, inst_activity, volume_profile)
+            
+            # Schedule next update
+            self.master.after(5000, self.update_market_analysis)
+    def check_and_alert_significant_events(self, order_flow, inst_activity, volume_profile):
+        alerts = []
+        
+        # Check for significant order flow events
+        if order_flow['liquidity_analysis']['liquidity_score'] > 0.8:
+            alerts.append("🔵 High Liquidity Event Detected")
+        
+        # Check for institutional activity
+        if inst_activity['large_orders']:
+            alerts.append("🟣 Large Institutional Orders Detected")
+        
+        # Check for volume profile events
+        if volume_profile['trading_opportunities']:
+            alerts.append("🟢 Volume Profile Trading Opportunity")
+        
+        # Send alerts
+        for alert in alerts:
+            self.send_telegram_update(f"{alert}\nMarket: {self.get_selected_market()}")
+
+    def draw_order_flow_bars(self, liquidity_data):
+        width = self.order_flow_canvas.winfo_width()
+        height = self.order_flow_canvas.winfo_height()
+        
+        for cluster in liquidity_data['bid_clusters']:
+            y = self.price_to_y(cluster['price'], height)
+            w = self.volume_to_width(cluster['volume'], width)
+            self.order_flow_canvas.create_rectangle(
+                0, y, w, y+2, 
+                fill='green', outline='')
+        
+        for cluster in liquidity_data['ask_clusters']:
+            y = self.price_to_y(cluster['price'], height)
+            w = self.volume_to_width(cluster['volume'], width)
+            self.order_flow_canvas.create_rectangle(
+                width-w, y, width, y+2, 
+                fill='red', outline='')
+
+    def price_to_y(self, price, height):
+        price_range = self.get_price_range()
+        if not price_range['max'] - price_range['min']:
+            return 0
+        return height * (1 - (price - price_range['min']) / (price_range['max'] - price_range['min']))
+
+    def volume_to_width(self, volume, max_width):
+        max_volume = self.get_max_volume()
+        if not max_volume:
+            return 0
+        return (volume / max_volume) * max_width * 0.45
+
+    def get_price_range(self):
+        market = self.get_selected_market()
+        timeframe = self.choose_time.get()
+        df = self.fetch_market_data(market, timeframe)
+        
+        return {
+            'max': df['high'].max(),
+            'min': df['low'].min()
+        }
+
+    def get_max_volume(self):
+        market = self.get_selected_market()
+        timeframe = self.choose_time.get()
+        df = self.fetch_market_data(market, timeframe)
+        return df['volume'].max()
+
     def setup_advanced_filters(self):
         self.filter_config = {
             'volume_threshold': 100000,
@@ -384,6 +536,35 @@ class ScannerGUI(MarketScanner):
         self.create_performance_charts(viz_frame)
         
         return viz_frame
+    def create_advanced_analysis_panel(self):
+        analysis_frame = ttk.LabelFrame(self.dashboard_frame, text="Advanced Analysis")
+        analysis_frame.grid(row=5, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
+        
+        # Market Profile Display
+        self.market_profile_canvas = self.create_market_profile_display(analysis_frame)
+        
+        # Order Flow Analysis
+        self.order_flow_display = self.create_order_flow_display(analysis_frame)
+        
+        # Institutional Activity
+        self.institutional_activity = self.create_institutional_display(analysis_frame)
+        
+        return analysis_frame
+
+    def update_advanced_analysis(self):
+        if self.scanning:
+            current_market = self.get_selected_market()
+            
+            # Update market profile
+            market_profile = self.analyze_market_profile(current_market, self.choose_time.get())
+            self.update_market_profile_display(market_profile)
+            
+            # Update order flow
+            inst_orders = self.institutional_order_detection(current_market)
+            self.update_institutional_display(inst_orders)
+            
+            # Schedule next update
+            self.master.after(10000, self.update_advanced_analysis)
 
     def create_market_heatmap(self, parent_frame):
         heatmap_frame = ttk.Frame(parent_frame)
