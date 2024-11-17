@@ -235,6 +235,25 @@ class MarketScanner(BaseScanner):
             'volume_ratio': volume_ratio.iloc[-1],
             'volume_sma': volume_sma.iloc[-1]
         }
+    def analyze_market_regime(self, df):
+        regime_data = {
+            'trend_strength': self.detect_trend_strength(df),
+            'volatility': df['close'].pct_change().std() * np.sqrt(252),
+            'volume_profile': self.analyze_volume_profile(df),
+            'market_phase': self.detect_market_phase(df)
+        }
+        return regime_data
+
+    def detect_market_phase(self, df):
+        adx = talib.ADX(df['high'], df['low'], df['close'])
+        volatility = df['close'].pct_change().std() * np.sqrt(252)
+        
+        if adx.iloc[-1] > 25:
+            return 'Trending' if volatility > 0.2 else 'Low Volatility Trend'
+        else:
+            return 'Ranging' if volatility > 0.2 else 'Accumulation'
+
+
 
     def detect_htf_support_wick(self, market):
         # Get higher timeframe supports
@@ -553,7 +572,15 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Data fetch error for {market}: {e}")
             return None
-
+    def classify_trading_style(self, signal_data, timeframe):
+        # Day trading timeframes
+        day_trading_timeframes = ['1m', '5m', '15m', '30m', '1h']
+        
+        is_day_trade = timeframe in day_trading_timeframes
+        
+        # Add trading style to signal data
+        signal_data['trading_style'] = 'Day Trade 📈' if is_day_trade else 'Swing Trade 🌊'
+        return signal_data
     def generate_signals(self, df):
         signals = []
         try:
@@ -603,51 +630,238 @@ class MarketScanner(BaseScanner):
     def process_signals(self, market, timeframe, signals):
         for signal in signals:
             try:
+                # Classify trading style and calculate additional metrics
+                signal = self.classify_trading_style(signal, timeframe)
+                risk_level = self.calculate_risk_level(signal)
+                
+                # Get technical levels
+                df = self.fetch_market_data(market, timeframe)
+                vwap_data = self.calculate_vwap_levels(df)
+                pivot_points = self.calculate_pivot_points(df)
+                fib_levels = self.calculate_fibonacci_levels(df)
+                
                 # Log signal detection
                 self.logger.info(f"New signal detected for {market}: {signal['type']}")
                 
-                # Store in database first
+                # Store in database
                 self.store_signals_db([signal], market, timeframe)
-                self.logger.info(f"Signal stored in database for {market}")
                 
-                # Construct message based on signal type
+                # Construct enhanced message based on signal type
                 if signal['type'] == 'HTF_SUPPORT_WICK':
                     message = (
-                        f"🎯 HTF Support Wick Signal\n"
+                        f"🎯 {signal['trading_style']}\n"
+                        f"HTF Support Wick Signal\n"
                         f"Market: {market}\n"
-                        f"Support Timeframe: {signal['support_tf']}\n"
-                        f"Wick Timeframe: {signal['wick_tf']}\n"
-                        f"Support Price: {signal['support_price']:.8f}\n"
+                        f"Support TF: {signal['support_tf']}\n"
+                        f"Wick TF: {signal['wick_tf']}\n"
+                        f"Support: {signal['support_price']:.8f}\n"
                         f"Wick Size: {signal['wick_size']:.2%}\n"
-                        f"Support Strength: {signal['strength']}"
+                        f"Strength: {signal['strength']}\n"
+                        f"Risk Level: {risk_level}\n"
+                        f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}\n"
+                        f"Next Pivot: {pivot_points['r1']:.8f}"
                     )
+                
                 elif signal['type'] == 'SUPPORT_DROP_RECOVERY':
                     message = (
-                        f"📊 Support Drop Recovery Signal\n"
+                        f"📊 {signal['trading_style']}\n"
+                        f"Support Drop Recovery Signal\n"
                         f"Market: {market}\n"
                         f"Dropped Support: {signal['dropped_support']:.8f}\n"
                         f"Next Support: {signal['next_support']:.8f}\n"
                         f"Days Below: {signal['days_below']}\n"
                         f"Wick Size: {signal['wick_size']:.2%}\n"
-                        f"Support Strength: {signal['strength']}"
+                        f"Strength: {signal['strength']}\n"
+                        f"Risk Level: {risk_level}\n"
+                        f"Fib Level: {fib_levels['level_618']:.8f}"
                     )
+                
                 else:
                     message = (
-                        f"🔔 Signal Alert!\n"
+                        f"🔔 {signal['trading_style']}\n"
+                        f"Signal Alert!\n"
                         f"Market: {market}\n"
                         f"Signal: {signal['type']}\n"
                         f"Price: {signal.get('price', 'N/A')}\n"
-                        f"Timeframe: {timeframe}"
+                        f"Timeframe: {timeframe}\n"
+                        f"Risk Level: {risk_level}\n"
+                        f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}\n"
+                        f"Pivot Points:\n"
+                        f"R1: {pivot_points['r1']:.8f}\n"
+                        f"S1: {pivot_points['s1']:.8f}\n"
+                        f"Volume Profile: {signal.get('volume_context', 'N/A')}"
                     )
                 
-                # Send telegram notification with logging
+                # Send telegram notification
                 if self.tel_id and self.bot_token:
                     self.logger.info(f"Sending signal notification for {market}")
                     self.send_telegram_update(message)
                     self.logger.info(f"Signal notification sent for {market}")
-                
+                    
             except Exception as e:
                 self.logger.error(f"Signal processing error for {market}: {e}")
+    def calculate_risk_level(self, signal):
+        risk_score = 0
+        
+        # Volume-based risk
+        if signal.get('volume_ratio', 0) > 2.0:
+            risk_score += 1
+        
+        # Trend strength risk
+        if signal.get('trend_strength', 0) > 25:
+            risk_score += 1
+        
+        # Pattern reliability
+        if signal.get('confirmation_count', 0) >= 2:
+            risk_score += 1
+        
+        # Market volatility
+        if signal.get('atr_ratio', 0) > 1.5:
+            risk_score += 1
+        
+        risk_levels = {
+            0: "Low Risk 🟢",
+            1: "Moderate Risk 🟡",
+            2: "Medium Risk 🟠",
+            3: "High Risk 🔴",
+            4: "Very High Risk ⛔"
+        }
+        
+        return risk_levels.get(risk_score, "Unknown Risk ⚠️")
+
+    def calculate_position_size(self, signal, risk_percentage=1.0):
+        account_balance = float(self.binance.fetch_balance()['total']['USDT'])
+        risk_amount = account_balance * (risk_percentage / 100)
+        
+        stop_loss = self.calculate_stop_loss(signal)
+        entry_price = float(signal['price'])
+        
+        if stop_loss:
+            risk_per_unit = abs(entry_price - stop_loss)
+            position_size = risk_amount / risk_per_unit
+            return round(position_size, 8)
+        return None
+    def analyze_order_flow(self, market):
+        order_book = self.binance.fetch_order_book(market)
+        trades = self.binance.fetch_trades(market, limit=100)
+        
+        buy_volume = sum(trade['amount'] for trade in trades if trade['side'] == 'buy')
+        sell_volume = sum(trade['amount'] for trade in trades if trade['side'] == 'sell')
+        
+        bid_depth = sum(bid[1] for bid in order_book['bids'][:10])
+        ask_depth = sum(ask[1] for ask in order_book['asks'][:10])
+        
+        return {
+            'buy_pressure': buy_volume / (buy_volume + sell_volume),
+            'bid_ask_ratio': bid_depth / ask_depth,
+            'depth_imbalance': (bid_depth - ask_depth) / (bid_depth + ask_depth)
+        }
+
+    def detect_session_momentum(self, market, timeframe):
+        df = self.fetch_market_data(market, timeframe)
+        session_data = {
+            'asian': df.between_time('00:00', '08:00'),
+            'london': df.between_time('08:00', '16:00'),
+            'new_york': df.between_time('13:00', '21:00')
+        }
+        
+        momentum_scores = {}
+        for session, data in session_data.items():
+            momentum_scores[session] = {
+                'volume': data['volume'].mean(),
+                'volatility': data['close'].pct_change().std(),
+                'trend': data['close'].iloc[-1] - data['open'].iloc[0]
+            }
+        
+        return momentum_scores
+
+    def integrate_analysis_components(self, market, timeframe):
+        # Collect all analysis data
+        order_flow = self.analyze_order_flow(market)
+        session_data = self.detect_session_momentum(market, timeframe)
+        market_regime = self.analyze_market_regime(self.fetch_market_data(market, timeframe))
+        
+        # Combine with technical signals
+        signals = self.generate_signals(self.fetch_market_data(market, timeframe))
+        
+        for signal in signals:
+            signal.update({
+                'order_flow_data': order_flow,
+                'session_momentum': session_data,
+                'market_regime': market_regime,
+                'position_size': self.calculate_position_size(signal),
+                'risk_metrics': self.calculate_risk_level(signal)
+            })
+        
+        return signals
+
+    def process_integrated_signals(self, market, timeframe):
+        signals = self.integrate_analysis_components(market, timeframe)
+        
+        for signal in signals:
+            # Update trade journal
+            self.update_trade_journal(signal)
+            
+            # Update performance metrics
+            self.update_performance_metrics(market, signal)
+            
+            # Run through backtesting engine
+            backtest_results = self.run_backtest(signal)
+            
+            # Update dashboard
+            self.update_performance_dashboard(signal, backtest_results)
+    def calculate_win_rate(self):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        if not trades:
+            return 0.0
+            
+        winning_trades = sum(1 for trade in trades if trade.get('pnl', 0) > 0)
+        return (winning_trades / len(trades)) * 100
+
+    def calculate_profit_factor(self):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        if not trades:
+            return 0.0
+            
+        gross_profit = sum(trade.get('pnl', 0) for trade in trades if trade.get('pnl', 0) > 0)
+        gross_loss = abs(sum(trade.get('pnl', 0) for trade in trades if trade.get('pnl', 0) < 0))
+        
+        return gross_profit / gross_loss if gross_loss else 0.0
+
+    def calculate_sharpe_ratio(self):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        if not trades:
+            return 0.0
+            
+        returns = [trade.get('pnl', 0) for trade in trades]
+        if not returns:
+            return 0.0
+            
+        return (np.mean(returns) / np.std(returns)) * np.sqrt(252)
+
+    def calculate_drawdown(self):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        if not trades:
+            return 0.0
+            
+        cumulative_returns = np.cumsum([trade.get('pnl', 0) for trade in trades])
+        running_max = np.maximum.accumulate(cumulative_returns)
+        drawdown = (cumulative_returns - running_max) / running_max
+        
+        return abs(min(drawdown)) * 100
+
+    def calculate_var(self, confidence_level=0.95):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        if not trades:
+            return 0.0
+            
+        returns = [trade.get('pnl', 0) for trade in trades]
+        return np.percentile(returns, (1 - confidence_level) * 100)
+
+    def calculate_exposure(self):
+        active_positions = self.binance.fetch_positions()
+        total_exposure = sum(abs(float(pos['notional'])) for pos in active_positions if pos['notional'])
+        return total_exposure
 
 
     def store_signals_db(self, signals, market, timeframe):

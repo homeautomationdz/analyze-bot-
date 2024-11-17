@@ -75,3 +75,264 @@ Support Strength: Very Strong
 2024-11-16 21:23:45,004 - INFO - Telegram message sent successfully
 2024-11-16 21:23:49,192 - INFO - Sending telegram message: 🚀 Scanner Started - Monitoring Markets
 2024-11-16 21:23:49,562 - INFO - Telegram message sent successfully
+2024-11-17 07:21:49,440 - INFO - Sending telegram message: 🚀 Scanner Started - Monitoring Markets
+2024-11-17 07:21:49,833 - INFO - Telegram message sent successfully
+2024-11-17 07:21:55,809 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:21:57,248 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:21:58,628 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:21:59,967 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:22:01,219 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:22:02,581 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:22:03,849 - ERROR - Error in change method: binance GET https://dapi.binance.com/dapi/v1/exchangeInfo 403 Forbidden <html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+</body>
+</html>
+2024-11-17 07:22:11,552 - INFO - Sending telegram message: 🚀 Scanner Started - Monitoring Markets
+2024-11-17 07:22:11,903 - INFO - Telegram message sent successfully
+2024-11-17 07:28:16,531 - INFO - New signal detected for WLD/USDT: HTF_SUPPORT_WICK
+2024-11-17 07:28:16,540 - INFO - Signal stored in database for WLD/USDT
+2024-11-17 07:28:16,542 - INFO - Sending signal notification for WLD/USDT
+2024-11-17 07:28:16,542 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: WLD/USDT
+Support Timeframe: 1w
+Wick Timeframe: 30m
+Support Price: 2.32800000
+Wick Size: 0.43%
+Support Strength: Very Strong
+2024-11-17 07:28:17,989 - INFO - Telegram message sent successfully
+2024-11-17 07:28:17,991 - INFO - Signal notification sent for WLD/USDT
+2024-11-17 07:36:13,746 - INFO - New signal detected for AR/USDT: SUPPORT_DROP_RECOVERY
+2024-11-17 07:36:13,756 - INFO - Signal stored in database for AR/USDT
+2024-11-17 07:36:13,757 - INFO - Sending signal notification for AR/USDT
+2024-11-17 07:36:13,757 - INFO - Sending telegram message: 📊 Support Drop Recovery Signal
+Market: AR/USDT
+Dropped Support: 19.20000000
+Next Support: 18.62000000
+Days Below: 3
+Wick Size: 8.18%
+Support Strength: Very Strong
+2024-11-17 07:36:14,196 - INFO - Telegram message sent successfully
+2024-11-17 07:36:14,198 - INFO - Signal notification sent for AR/USDT
+2024-11-17 07:46:14,288 - INFO - New signal detected for FET/USDT: HTF_SUPPORT_WICK
+2024-11-17 07:46:14,297 - INFO - Signal stored in database for FET/USDT
+2024-11-17 07:46:14,298 - INFO - Sending signal notification for FET/USDT
+2024-11-17 07:46:14,298 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: FET/USDT
+Support Timeframe: 1d
+Wick Timeframe: 30m
+Support Price: 1.31600000
+Wick Size: 0.30%
+Support Strength: Very Strong
+2024-11-17 07:46:14,651 - INFO - Telegram message sent successfully
+2024-11-17 07:46:14,652 - INFO - Signal notification sent for FET/USDT
+2024-11-17 07:48:25,436 - INFO - New signal detected for 1000SATS/USDT: HTF_SUPPORT_WICK
+2024-11-17 07:48:25,445 - INFO - Signal stored in database for 1000SATS/USDT
+2024-11-17 07:48:25,445 - INFO - Sending signal notification for 1000SATS/USDT
+2024-11-17 07:48:25,445 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: 1000SATS/USDT
+Support Timeframe: 1d
+Wick Timeframe: 15m
+Support Price: 0.00024360
+Wick Size: 0.53%
+Support Strength: Very Strong
+2024-11-17 07:48:25,819 - INFO - Telegram message sent successfully
+2024-11-17 07:48:25,820 - INFO - Signal notification sent for 1000SATS/USDT
+2024-11-17 07:49:34,587 - INFO - New signal detected for QNT/USDT: HTF_SUPPORT_WICK
+2024-11-17 07:49:34,596 - INFO - Signal stored in database for QNT/USDT
+2024-11-17 07:49:34,596 - INFO - Sending signal notification for QNT/USDT
+2024-11-17 07:49:34,597 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: QNT/USDT
+Support Timeframe: 1w
+Wick Timeframe: 15m
+Support Price: 84.50000000
+Wick Size: 0.83%
+Support Strength: Very Strong
+2024-11-17 07:49:35,037 - INFO - Telegram message sent successfully
+2024-11-17 07:49:35,038 - INFO - Signal notification sent for QNT/USDT
+2024-11-17 07:50:27,008 - INFO - New signal detected for AAVE/USDT: HTF_SUPPORT_WICK
+2024-11-17 07:50:27,018 - INFO - Signal stored in database for AAVE/USDT
+2024-11-17 07:50:27,019 - INFO - Sending signal notification for AAVE/USDT
+2024-11-17 07:50:27,020 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: AAVE/USDT
+Support Timeframe: 4h
+Wick Timeframe: 15m
+Support Price: 168.02000000
+Wick Size: 0.37%
+Support Strength: Very Strong
+2024-11-17 07:50:27,329 - INFO - Telegram message sent successfully
+2024-11-17 07:50:27,330 - INFO - Signal notification sent for AAVE/USDT
+2024-11-17 07:51:14,711 - INFO - New signal detected for AR/USDT: SUPPORT_DROP_RECOVERY
+2024-11-17 07:51:14,720 - INFO - Signal stored in database for AR/USDT
+2024-11-17 07:51:14,720 - INFO - Sending signal notification for AR/USDT
+2024-11-17 07:51:14,721 - INFO - Sending telegram message: 📊 Support Drop Recovery Signal
+Market: AR/USDT
+Dropped Support: 19.20000000
+Next Support: 18.62000000
+Days Below: 3
+Wick Size: 8.18%
+Support Strength: Very Strong
+2024-11-17 07:51:14,982 - INFO - Telegram message sent successfully
+2024-11-17 07:51:14,983 - INFO - Signal notification sent for AR/USDT
+2024-11-17 07:59:36,225 - INFO - New signal detected for WLD/USDT: HTF_SUPPORT_WICK
+2024-11-17 07:59:36,239 - INFO - Signal stored in database for WLD/USDT
+2024-11-17 07:59:36,241 - INFO - Sending signal notification for WLD/USDT
+2024-11-17 07:59:36,242 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: WLD/USDT
+Support Timeframe: 1w
+Wick Timeframe: 15m
+Support Price: 2.32800000
+Wick Size: 0.47%
+Support Strength: Very Strong
+2024-11-17 07:59:36,568 - INFO - Telegram message sent successfully
+2024-11-17 07:59:36,569 - INFO - Signal notification sent for WLD/USDT
+2024-11-17 08:03:41,174 - INFO - New signal detected for 1000SATS/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:03:41,183 - INFO - Signal stored in database for 1000SATS/USDT
+2024-11-17 08:03:41,184 - INFO - Sending signal notification for 1000SATS/USDT
+2024-11-17 08:03:41,184 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: 1000SATS/USDT
+Support Timeframe: 1d
+Wick Timeframe: 15m
+Support Price: 0.00024360
+Wick Size: 0.32%
+Support Strength: Very Strong
+2024-11-17 08:03:41,489 - INFO - Telegram message sent successfully
+2024-11-17 08:03:41,490 - INFO - Signal notification sent for 1000SATS/USDT
+2024-11-17 08:04:54,728 - INFO - New signal detected for QNT/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:04:54,737 - INFO - Signal stored in database for QNT/USDT
+2024-11-17 08:04:54,738 - INFO - Sending signal notification for QNT/USDT
+2024-11-17 08:04:54,739 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: QNT/USDT
+Support Timeframe: 1w
+Wick Timeframe: 15m
+Support Price: 84.50000000
+Wick Size: 1.18%
+Support Strength: Very Strong
+2024-11-17 08:04:55,018 - INFO - Telegram message sent successfully
+2024-11-17 08:04:55,019 - INFO - Signal notification sent for QNT/USDT
+2024-11-17 08:05:57,699 - INFO - New signal detected for AAVE/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:05:57,710 - INFO - Signal stored in database for AAVE/USDT
+2024-11-17 08:05:57,711 - INFO - Sending signal notification for AAVE/USDT
+2024-11-17 08:05:57,712 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: AAVE/USDT
+Support Timeframe: 4h
+Wick Timeframe: 15m
+Support Price: 168.02000000
+Wick Size: 0.44%
+Support Strength: Very Strong
+2024-11-17 08:05:58,012 - INFO - Telegram message sent successfully
+2024-11-17 08:05:58,014 - INFO - Signal notification sent for AAVE/USDT
+2024-11-17 08:06:33,685 - INFO - New signal detected for AR/USDT: SUPPORT_DROP_RECOVERY
+2024-11-17 08:06:33,693 - INFO - Signal stored in database for AR/USDT
+2024-11-17 08:06:33,693 - INFO - Sending signal notification for AR/USDT
+2024-11-17 08:06:33,694 - INFO - Sending telegram message: 📊 Support Drop Recovery Signal
+Market: AR/USDT
+Dropped Support: 19.20000000
+Next Support: 18.62000000
+Days Below: 3
+Wick Size: 8.18%
+Support Strength: Very Strong
+2024-11-17 08:06:33,954 - INFO - Telegram message sent successfully
+2024-11-17 08:06:33,955 - INFO - Signal notification sent for AR/USDT
+2024-11-17 08:14:33,840 - INFO - New signal detected for WLD/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:14:33,849 - INFO - Signal stored in database for WLD/USDT
+2024-11-17 08:14:33,850 - INFO - Sending signal notification for WLD/USDT
+2024-11-17 08:14:33,850 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: WLD/USDT
+Support Timeframe: 1w
+Wick Timeframe: 15m
+Support Price: 2.32800000
+Wick Size: 0.64%
+Support Strength: Very Strong
+2024-11-17 08:14:34,214 - INFO - Telegram message sent successfully
+2024-11-17 08:14:34,219 - INFO - Signal notification sent for WLD/USDT
+2024-11-17 08:16:10,828 - INFO - New signal detected for FET/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:16:10,837 - INFO - Signal stored in database for FET/USDT
+2024-11-17 08:16:10,837 - INFO - Sending signal notification for FET/USDT
+2024-11-17 08:16:10,838 - INFO - Sending telegram message: 🎯 HTF Support Wick Signal
+Market: FET/USDT
+Support Timeframe: 1d
+Wick Timeframe: 30m
+Support Price: 1.31600000
+Wick Size: 0.99%
+Support Strength: Very Strong
+2024-11-17 08:16:11,622 - INFO - Telegram message sent successfully
+2024-11-17 08:16:11,623 - INFO - Signal notification sent for FET/USDT
+2024-11-17 08:17:18,432 - INFO - Sending telegram message: 🚀 Scanner Started - Monitoring Markets
+2024-11-17 08:17:18,728 - INFO - Telegram message sent successfully
+2024-11-17 08:22:54,115 - INFO - New signal detected for WLD/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:22:54,123 - INFO - Sending signal notification for WLD/USDT
+2024-11-17 08:22:54,124 - INFO - Sending telegram message: 🎯 Day Trade 📈
+HTF Support Wick Signal
+Market: WLD/USDT
+Support TF: 1w
+Wick TF: 30m
+Support: 2.32800000
+Wick Size: 0.77%
+Strength: Very Strong
+Risk Level: Low Risk 🟢
+VWAP: 2.32517411
+Next Pivot: 2.34500000
+2024-11-17 08:22:54,545 - INFO - Telegram message sent successfully
+2024-11-17 08:22:54,546 - INFO - Signal notification sent for WLD/USDT
+2024-11-17 08:23:50,014 - INFO - New signal detected for SAND/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:23:50,025 - INFO - Sending signal notification for SAND/USDT
+2024-11-17 08:23:50,026 - INFO - Sending telegram message: 🎯 Day Trade 📈
+HTF Support Wick Signal
+Market: SAND/USDT
+Support TF: 1w
+Wick TF: 15m
+Support: 0.36030000
+Wick Size: 1.87%
+Strength: Very Strong
+Risk Level: Low Risk 🟢
+VWAP: 0.35187076
+Next Pivot: 0.36873333
+2024-11-17 08:23:50,523 - INFO - Telegram message sent successfully
+2024-11-17 08:23:50,524 - INFO - Signal notification sent for SAND/USDT
+2024-11-17 08:24:46,316 - INFO - New signal detected for FET/USDT: HTF_SUPPORT_WICK
+2024-11-17 08:24:46,325 - INFO - Sending signal notification for FET/USDT
+2024-11-17 08:24:46,325 - INFO - Sending telegram message: 🎯 Day Trade 📈
+HTF Support Wick Signal
+Market: FET/USDT
+Support TF: 1d
+Wick TF: 15m
+Support: 1.31600000
+Wick Size: 0.31%
+Strength: Very Strong
+Risk Level: Low Risk 🟢
+VWAP: 1.30026561
+Next Pivot: 1.31833333
+2024-11-17 08:24:46,639 - INFO - Telegram message sent successfully
+2024-11-17 08:24:46,640 - INFO - Signal notification sent for FET/USDT

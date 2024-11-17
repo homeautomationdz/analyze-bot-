@@ -81,6 +81,79 @@ class BaseScanner(tk.Frame):
         }
 
        # Add to BaseScanner class
+    def setup_market_regime(self):
+        self.market_regimes = {
+            'trend_following': {
+                'adx_threshold': 25,
+                'volatility_threshold': 1.5
+            },
+            'mean_reversion': {
+                'rsi_threshold': 30,
+                'bollinger_threshold': 2.0
+            },
+            'breakout': {
+                'volume_threshold': 2.0,
+                'range_threshold': 1.5
+            }
+        }
+    def setup_ml_components(self):
+        self.ml_config = {
+            'pattern_recognition': {
+                'window_size': 20,
+                'confidence_threshold': 0.8,
+                'min_pattern_quality': 0.7
+            },
+            'trend_prediction': {
+                'lookback_period': 100,
+                'forecast_horizon': 5
+            }
+        }
+            
+    def setup_backtesting_engine(self):
+        self.backtest_config = {
+            'lookback_period': 500,
+            'timeframes': ['15m', '1h', '4h', '1d'],
+            'metrics': {
+                'win_rate': 0,
+                'profit_factor': 0,
+                'sharpe_ratio': 0,
+                'max_drawdown': 0
+            },
+            'optimization': {
+                'enabled': True,
+                'parameters': ['stop_loss', 'take_profit', 'entry_confirmation']
+            }
+        }
+
+    def setup_trade_journal(self):
+        self.journal_config = {
+            'trade_metrics': ['entry', 'exit', 'pnl', 'risk_reward', 'setup_quality'],
+            'market_metrics': ['volume_profile', 'session_data', 'market_regime'],
+            'performance_tracking': ['daily_pnl', 'win_rate', 'avg_trade']
+        }
+
+    def integrate_core_components(self):
+        self.signal_processor = {
+            'confirmations': {},
+            'performance_metrics': {},
+            'market_regimes': {},
+            'trade_journal': {},
+            'backtest_results': {}
+        }
+        
+        self.risk_manager = {
+            'position_sizing': self.calculate_position_size,
+            'risk_metrics': self.calculate_risk_level,
+            'exposure_limits': self.calculate_exposure
+        }
+        
+        self.market_analyzer = {
+            'order_flow': self.analyze_order_flow,
+            'session_data': self.detect_session_momentum,
+            'regime_detection': self.analyze_market_regime
+        }
+
+
     def setup_logger(self, log_file):
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         self.logger = logging.getLogger(__name__)
@@ -333,6 +406,38 @@ class BaseScanner(tk.Frame):
                 })
                 
         return pattern_signals
+    def calculate_vwap_levels(self, df):
+        df['vwap'] = (df['volume'] * ((df['high'] + df['low'] + df['close']) / 3)).cumsum() / df['volume'].cumsum()
+        df['vwap_upper'] = df['vwap'] * 1.01  # 1% upper band
+        df['vwap_lower'] = df['vwap'] * 0.99  # 1% lower band
+        return df
+
+    def calculate_pivot_points(self, df):
+        pivot = (df['high'].iloc[-1] + df['low'].iloc[-1] + df['close'].iloc[-1]) / 3
+        r1 = 2 * pivot - df['low'].iloc[-1]
+        s1 = 2 * pivot - df['high'].iloc[-1]
+        r2 = pivot + (df['high'].iloc[-1] - df['low'].iloc[-1])
+        s2 = pivot - (df['high'].iloc[-1] - df['low'].iloc[-1])
+        
+        return {
+            'pivot': pivot,
+            'r1': r1, 'r2': r2,
+            's1': s1, 's2': s2
+        }
+
+    def calculate_fibonacci_levels(self, df):
+        high = df['high'].max()
+        low = df['low'].min()
+        diff = high - low
+        
+        return {
+            'level_0': high,
+            'level_236': high - (diff * 0.236),
+            'level_382': high - (diff * 0.382),
+            'level_500': high - (diff * 0.500),
+            'level_618': high - (diff * 0.618),
+            'level_100': low
+        }
 
     def detect_double_bottom(self, df):
         try:
