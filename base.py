@@ -322,7 +322,14 @@ class BaseScanner(tk.Frame):
         df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
         df['atr'] = talib.ATR(df['high'], df['low'], df['close'], timeperiod=14)
         return df
-
+    def analyze_momentum(self, df):
+        momentum_data = {
+            'rsi_momentum': self.classify_rsi_momentum(df['rsi'].iloc[-1]),
+            'macd_momentum': self.classify_macd_momentum(df['macd'].iloc[-1], df['macd_signal'].iloc[-1]),
+            'trend_strength': self.classify_adx_strength(df['adx'].iloc[-1])
+        }
+        
+        return self.calculate_momentum_score(momentum_data)
     def process_market_signal(self, market, timeframe, signal_data):
         try:
             # Validate signal data
@@ -348,6 +355,21 @@ class BaseScanner(tk.Frame):
         except Exception as e:
             self.logger.error(f"Signal processing error: {e}")
             return None
+    def analyze_market_performance(self, market, timeframe):
+        df = self.fetch_market_data(market, timeframe)
+        performance_metrics = {
+            'technical_analysis': self.calculate_technical_indicators(df),
+            'volume_analysis': self.analyze_volume_profile(df),
+            'pattern_analysis': self.detect_complex_patterns(df),
+            'sentiment': self.analyze_market_sentiment(market),
+            'institutional_activity': self.detect_institutional_activity(market)
+        }
+        
+        return {
+            'overall_score': self.calculate_performance_score(performance_metrics),
+            'metrics': performance_metrics,
+            'recommendations': self.generate_trading_recommendations(performance_metrics)
+        }
 
     def validate_signal_data(self, signal_data):
         required_fields = ['type', 'price', 'score', 'timestamp']
@@ -703,12 +725,12 @@ class BaseScanner(tk.Frame):
         }
 
     def detect_institutional_activity(self, market):
-        large_orders = self.track_large_orders(market)
-        iceberg_orders = self.detect_iceberg_orders(market)
+        trades = self.binance.fetch_trades(market, limit=1000)
+        order_book = self.binance.fetch_order_book(market, limit=100)
         
         return {
-            'large_orders': large_orders,
-            'iceberg_detection': iceberg_orders,
+            'large_orders': self.track_large_orders(trades),
+            'iceberg_detection': self.detect_iceberg_orders(market),
             'accumulation_zones': self.find_accumulation_zones(market),
             'institutional_levels': self.identify_institutional_levels(market)
         }

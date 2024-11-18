@@ -1158,3 +1158,52 @@ Next Pivot: 1.29166667
 2024-11-17 17:21:52,553 - INFO - Telegram message sent successfully
 2024-11-17 17:22:36,204 - INFO - Sending telegram message: 🚀 Scanner Started - Monitoring Markets
 2024-11-17 17:22:36,498 - INFO - Telegram message sent successfully
+2024-11-17 20:07:12,024 - INFO - Sending telegram message: 🚀 Scanner Started - Monitoring Markets
+2024-11-17 20:07:12,733 - INFO - Telegram message sent successfully
+2024-11-17 20:09:13,888 - INFO - New signal detected for USDT/ARS: HTF_SUPPORT_WICK
+2024-11-17 20:09:13,904 - INFO - Sending signal notification for USDT/ARS
+2024-11-17 20:09:13,904 - INFO - Sending telegram message: 🎯 Day Trade 📈
+HTF Support Wick Signal
+Market: USDT/ARS
+Support TF: 4h
+Wick TF: 15m
+Support: 1150.00000000
+Wick Size: 0.35%
+Strength: Very Strong
+Risk Level: Low Risk 🟢
+VWAP: 1140.27477260
+Next Pivot: 1143.40000000
+2024-11-17 20:09:14,226 - INFO - Telegram message sent successfully
+2024-11-17 20:09:14,242 - INFO - Signal notification sent for USDT/ARS
+2024-11-17 20:13:02,029 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'fetch_market_news'
+2024-11-17 20:15:12,768 - INFO - New signal detected for USDT/ARS: HTF_SUPPORT_WICK
+2024-11-17 20:15:12,784 - INFO - Sending signal notification for USDT/ARS
+2024-11-17 20:15:12,784 - INFO - Sending telegram message: 🎯 Day Trade 📈
+HTF Support Wick Signal
+Market: USDT/ARS
+Support TF: 4h
+Wick TF: 15m
+Support: 1146.40000000
+Wick Size: 0.36%
+Strength: Very Strong
+Risk Level: Low Risk 🟢
+VWAP: 1140.27571296
+Next Pivot: 1139.00000000
+2024-11-17 20:15:13,198 - INFO - Telegram message sent successfully
+2024-11-17 20:15:13,198 - INFO - Signal notification sent for USDT/ARS
+2024-11-17 20:19:03,887 - ERROR - Scanning error: 'ScannerGUI' object has no attribute 'fetch_market_news'
+2024-11-17 20:21:05,135 - INFO - New signal detected for USDT/ARS: HTF_SUPPORT_WICK
+2024-11-17 20:21:05,146 - INFO - Sending signal notification for USDT/ARS
+2024-11-17 20:21:05,147 - INFO - Sending telegram message: 🎯 Day Trade 📈
+HTF Support Wick Signal
+Market: USDT/ARS
+Support TF: 4h
+Wick TF: 30m
+Support: 1146.40000000
+Wick Size: 0.39%
+Strength: Very Strong
+Risk Level: Low Risk 🟢
+VWAP: 1140.27751853
+Next Pivot: 1143.06666667
+2024-11-17 20:21:05,759 - INFO - Telegram message sent successfully
+2024-11-17 20:21:05,759 - INFO - Signal notification sent for USDT/ARS

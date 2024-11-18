@@ -75,27 +75,9 @@ class MarketScanner(BaseScanner):
             except Exception as e:
                 self.logger.error(f"Scanning error: {e}")
                 time.sleep(5)
-    def analyze_enhanced_order_flow(self, market):
-        order_book = self.binance.fetch_order_book(market, limit=100)
-        trades = self.binance.fetch_trades(market, limit=1000)
-        
-        return {
-            'liquidity_analysis': self.analyze_liquidity_levels(order_book),
-            'trade_flow': self.analyze_trade_flow(trades),
-            'order_book_imbalance': self.calculate_order_imbalance(order_book),
-            'smart_money_activity': self.detect_smart_money(trades, order_book)
-        }
 
-    def analyze_liquidity_levels(self, order_book):
-        bids = pd.DataFrame(order_book['bids'], columns=['price', 'volume'])
-        asks = pd.DataFrame(order_book['asks'], columns=['price', 'volume'])
-        
-        return {
-            'bid_clusters': self.find_liquidity_clusters(bids),
-            'ask_clusters': self.find_liquidity_clusters(asks),
-            'liquidity_score': self.calculate_liquidity_score(bids, asks),
-            'significant_levels': self.find_significant_levels(bids, asks)
-        }
+
+
 
     def find_liquidity_clusters(self, orders):
         clusters = []
@@ -123,16 +105,7 @@ class MarketScanner(BaseScanner):
             'ask_volume': ask_volume,
             'bias': 'bullish' if imbalance_ratio > 0.6 else 'bearish' if imbalance_ratio < 0.4 else 'neutral'
         }
-    def detect_institutional_activity(self, market):
-        trades = self.binance.fetch_trades(market, limit=1000)
-        order_book = self.binance.fetch_order_book(market, limit=100)
-        
-        return {
-            'large_orders': self.track_large_orders(trades),
-            'iceberg_detection': self.detect_iceberg_orders(market),
-            'accumulation_zones': self.find_accumulation_zones(market),
-            'institutional_levels': self.identify_institutional_levels(market)
-        }
+
 
     def track_large_orders(self, trades):
         df = pd.DataFrame(trades)
@@ -192,21 +165,7 @@ class MarketScanner(BaseScanner):
                     })
         
         return levels
-    def enhanced_volume_profile(self, market, timeframe):
-        df = self.fetch_market_data(market, timeframe)
-        
-        profile_data = {
-            'volume_nodes': self.calculate_volume_nodes(df),
-            'poc_analysis': self.analyze_poc_levels(df),
-            'value_areas': self.calculate_value_areas(df),
-            'volume_delta': self.calculate_volume_delta(df)
-        }
-        
-        return {
-            'profile': profile_data,
-            'key_levels': self.identify_key_levels(profile_data),
-            'trading_opportunities': self.find_volume_opportunities(profile_data)
-        }
+
 
     def calculate_volume_nodes(self, df):
         price_bins = pd.qcut(df['close'], q=50, duplicates='drop')
@@ -337,26 +296,6 @@ class MarketScanner(BaseScanner):
         
         return min(base_strength, 10.0)  # Cap strength at 10
 
-    def detect_head_shoulders(self, df):
-        peaks = self.find_peaks(df['high'], distance=10)
-        troughs = self.find_peaks(-df['low'], distance=10)
-        
-        pattern_data = {
-            'left_shoulder': self.validate_shoulder(df, peaks, 0),
-            'head': self.validate_head(df, peaks, troughs),
-            'right_shoulder': self.validate_shoulder(df, peaks, -1),
-            'neckline': self.calculate_neckline(df, troughs)
-        }
-        
-        if self.validate_hs_pattern(pattern_data):
-            return {
-                'type': 'HEAD_AND_SHOULDERS',
-                'probability': self.calculate_pattern_probability(pattern_data),
-                'target': self.calculate_hs_target(pattern_data),
-                'validation': pattern_data
-            }
-        return None
-
     def find_peaks(self, data, distance=10):
         peaks = []
         for i in range(distance, len(data) - distance):
@@ -421,8 +360,9 @@ class MarketScanner(BaseScanner):
         return {
             'price': target,
             'height': height,
-            'risk_reward': height / (head_price - neckline_price) if head_price != neckline_price else 0
+            'risk_reward': self.calculate_risk_reward(target, neckline_price, head_price)
         }
+
 
     def get_neckline_price(self, neckline, index):
         return neckline['slope'] * index + neckline['intercept']
@@ -2401,26 +2341,6 @@ class MarketScanner(BaseScanner):
             'volatility_based_timing': self.analyze_volatility_based_timing()
         }
 
-    def calculate_hs_target(self, pattern_data):
-        neckline = pattern_data['neckline']
-        head_price = pattern_data['head']['price']
-        neckline_price = self.get_neckline_price(neckline, pattern_data['right_shoulder']['index'])
-        
-        # Calculate pattern height
-        height = head_price - neckline_price
-        
-        # Project target below neckline
-        target = neckline_price - height
-        
-        return {
-            'price': target,
-            'height': height,
-            'risk_reward': self.calculate_risk_reward(target, neckline_price, head_price)
-        }
-
-    def get_neckline_price(self, neckline, index):
-        return neckline['slope'] * index + neckline['intercept']
-
 
 
     def calculate_risk_reward(self, target, neckline, head):
@@ -2491,22 +2411,7 @@ class MarketScanner(BaseScanner):
         score += 20 * time_symmetry
         
         return score / max_score
-    def calculate_hs_target(self, pattern_data):
-        neckline = pattern_data['neckline']
-        head_price = pattern_data['head']['price']
-        neckline_price = self.get_neckline_price(neckline, pattern_data['right_shoulder']['index'])
-        
-        height = head_price - neckline_price
-        target = neckline_price - height
-        
-        return {
-            'price': target,
-            'height': height,
-            'risk_reward': height / (head_price - neckline_price) if head_price != neckline_price else 0
-        }
 
-    def get_neckline_price(self, neckline, index):
-        return neckline['slope'] * index + neckline['intercept']
 
 
     def calculate_volume_confirmation(self, pattern_data):
@@ -2662,25 +2567,7 @@ class MarketScanner(BaseScanner):
 
         return correlated_signals
 
-    def analyze_market_sentiment(self, market):
-        # Fetch data from multiple sources
-        price_data = self.fetch_market_data(market, '1h', limit=200)
-        volume_profile = self.analyze_volume_profile(price_data)
-        funding_rate = self.get_funding_rate(market)
 
-        sentiment_score = self.calculate_sentiment_score({
-            'price_action': self.analyze_price_action(price_data),
-            'volume_profile': volume_profile,
-            'funding_rate': funding_rate,
-            'technical_signals': self.get_technical_sentiment(price_data)
-        })
-
-        return {
-            'market': market,
-            'sentiment_score': sentiment_score,
-            'volume_profile': volume_profile,
-            'funding_data': funding_rate
-        }
 
     def analyze_volume_profile(self, df):
         if df is None or df.empty:
@@ -2708,12 +2595,18 @@ class MarketScanner(BaseScanner):
             'volume_sma': volume_sma.iloc[-1]
         }
     def analyze_market_regime(self, df):
+        df = self.calculate_technical_indicators(df)
+        
         regime_data = {
             'trend_strength': self.detect_trend_strength(df),
             'volatility': df['close'].pct_change().std() * np.sqrt(252),
             'volume_profile': self.analyze_volume_profile(df),
-            'market_phase': self.detect_market_phase(df)
+            'market_phase': self.detect_market_phase(df),
+            'momentum': self.analyze_momentum(df),
+            'support_resistance': self.identify_key_levels(df),
+            'order_flow': self.analyze_order_flow(df)
         }
+        
         return regime_data
     def calculate_dmi_adx(self, df):
         df['plus_di'] = talib.PLUS_DI(df['high'], df['low'], df['close'])
