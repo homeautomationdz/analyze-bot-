@@ -230,6 +230,183 @@ class ScannerGUI(MarketScanner):
         self.status_label = tk.Label(self.master, text="Scanner Status: Stopped",
                                    font=('Arial', 10), fg='red')
         self.status_label.grid(row=3, column=0, columnspan=4)
+
+        # Initialize enhanced dashboard
+        self.create_enhanced_dashboard()
+        self.update_dashboard()
+
+        
+    def create_enhanced_dashboard(self):
+        self.logger.info("Initializing enhanced dashboard...")
+        try:
+            self.dashboard = ttk.Frame(self.master)
+            self.dashboard.grid(row=4, column=0, columnspan=12, sticky='nsew', padx=10, pady=10)
+            self.logger.info("Dashboard frame created successfully")
+            
+            self.create_market_overview_panel()
+            self.create_signals_panel()
+            self.create_performance_panel()
+            self.create_quick_actions()
+            
+            self.logger.info("All dashboard panels initialized")
+        except Exception as e:
+            self.logger.error(f"Dashboard creation error: {e}")
+
+    def create_market_overview_panel(self):
+        overview = ttk.LabelFrame(self.dashboard, text="Market Overview")
+        overview.grid(row=0, column=0, columnspan=3, sticky='nsew', padx=5, pady=5)
+        
+        # Market price ticker
+        self.price_label = ttk.Label(overview, text="Current Price:", font=('Arial', 12, 'bold'))
+        self.price_label.grid(row=0, column=0, padx=5, pady=5)
+        
+        # 24h Change indicator with color coding
+        self.change_label = ttk.Label(overview, text="24h Change:", font=('Arial', 12))
+        self.change_label.grid(row=1, column=0, padx=5, pady=5)
+        
+        # Volume indicator with progress bar
+        self.volume_progress = ttk.Progressbar(overview, length=200, mode='determinate')
+        self.volume_progress.grid(row=2, column=0, padx=5, pady=5)
+
+    def create_signals_panel(self):
+        self.signals_state = {
+            'last_update': None,
+            'signal_count': 0,
+            'active_signals': []
+        }
+        
+        signals = ttk.LabelFrame(self.dashboard, text="Active Signals")
+        signals.grid(row=0, column=3, columnspan=3, sticky='nsew', padx=5, pady=5)
+        
+        # Signal treeview with debugging info
+        columns = ('Time', 'Market', 'Type', 'Strength', 'Action', 'Status')
+        self.signals_tree = ttk.Treeview(signals, columns=columns, show='headings', height=8)
+        for col in columns:
+            self.signals_tree.heading(col, text=col)
+            self.signals_tree.column(col, width=100)
+    def monitor_ui_performance(self):
+        self.ui_metrics = {
+            'update_times': [],
+            'signal_processing_times': [],
+            'render_times': []
+        }
+        
+        def measure_update_time(func):
+            def wrapper(*args, **kwargs):
+                start = time.time()
+                result = func(*args, **kwargs)
+                duration = time.time() - start
+                self.ui_metrics['update_times'].append(duration)
+                if duration > 0.1:  # Slow update threshold
+                    self.logger.warning(f"Slow UI update: {func.__name__} took {duration:.3f}s")
+                return result
+            return wrapper
+        
+        # Apply to key methods
+        self.update_dashboard = measure_update_time(self.update_dashboard)
+    def create_debug_panel(self):
+        debug_frame = ttk.LabelFrame(self.master, text="Debug Controls")
+        debug_frame.grid(row=5, column=0, columnspan=12, sticky='ew', padx=5, pady=5)
+        
+        ttk.Button(debug_frame, text="Force Update", 
+                command=self.force_ui_update).pack(side='left', padx=5)
+        ttk.Button(debug_frame, text="Clear Signals", 
+                command=self.clear_signals).pack(side='left', padx=5)
+        ttk.Button(debug_frame, text="Show Metrics", 
+                command=self.show_debug_metrics).pack(side='left', padx=5)
+
+
+    def create_performance_panel(self):
+        performance = ttk.LabelFrame(self.dashboard, text="Performance Metrics")
+        performance.grid(row=1, column=0, columnspan=6, sticky='nsew', padx=5, pady=5)
+        
+        # Win rate gauge
+        self.win_rate_canvas = tk.Canvas(performance, width=150, height=150, bg='black')
+        self.win_rate_canvas.grid(row=0, column=0, padx=5, pady=5)
+        
+        # Profit chart
+        self.profit_canvas = tk.Canvas(performance, width=300, height=150, bg='black')
+        self.profit_canvas.grid(row=0, column=1, padx=5, pady=5)
+
+    def create_quick_actions(self):
+        actions = ttk.LabelFrame(self.dashboard, text="Quick Actions")
+        actions.grid(row=2, column=0, columnspan=6, sticky='nsew', padx=5, pady=5)
+        
+        # Quick filter buttons
+        ttk.Button(actions, text="Top Gainers", command=lambda: self.quick_filter('gainers')).grid(row=0, column=0, padx=5, pady=5)
+        ttk.Button(actions, text="High Volume", command=lambda: self.quick_filter('volume')).grid(row=0, column=1, padx=5, pady=5)
+        ttk.Button(actions, text="Strong Signals", command=lambda: self.quick_filter('signals')).grid(row=0, column=2, padx=5, pady=5)
+
+    def quick_filter(self, filter_type):
+        if filter_type == 'gainers':
+            filtered_markets = self.change('Top')
+        elif filter_type == 'volume':
+            filtered_markets = self.change('Best-vol')
+        elif filter_type == 'signals':
+            filtered_markets = self.get_strong_signal_markets()
+        
+        self.selected_markets = filtered_markets
+        self.update_selected_markets_display()
+
+    def get_strong_signal_markets(self):
+        strong_signals = []
+        for market in self.tickers():
+            df = self.fetch_market_data(market, self.choose_time.get())
+            if df is not None:
+                signals = self.generate_signals(df)
+                if any(signal.get('strength', '') == 'high' for signal in signals):
+                    strong_signals.append(market)
+        return strong_signals
+
+    def update_selected_markets_display(self):
+        try:
+            self.selected_markets_listbox.delete(0, tk.END)
+            for market in self.selected_markets:
+                self.selected_markets_listbox.insert(tk.END, market)
+        except Exception as e:
+            self.logger.error(f"Error updating markets display: {e}")
+
+    def update_market_overview(self):
+        if not hasattr(self, 'price_label'):
+            return
+            
+        try:
+            if self.selected_markets:
+                market = self.selected_markets[0]
+                ticker = self.binance.fetch_ticker(market)
+                
+                self.price_label.config(text=f"Price: {ticker['last']:.8f}")
+                
+                change = float(ticker['percentage'])
+                color = 'green' if change > 0 else 'red'
+                self.change_label.config(text=f"24h Change: {change:.2f}%", fg=color)
+                
+                volume = float(ticker['quoteVolume'])
+                max_volume = 100000000  # 100M baseline
+                volume_percent = min((volume / max_volume) * 100, 100)
+                self.volume_progress['value'] = volume_percent
+                
+        except Exception as e:
+            self.logger.error(f"Error updating market overview: {e}")
+
+    def update_dashboard(self):
+        if self.scanning:
+            try:
+                self.update_market_overview()
+                self.status_label.config(text="Updating market overview...", fg='blue')
+                
+                self.update_signals_display()
+                self.status_label.config(text="Updating signals...", fg='blue')
+                
+                self.update_performance_metrics()
+                self.status_label.config(text="Scanner Status: Running", fg='green')
+                
+                self.master.after(1000, self.update_dashboard)
+            except Exception as e:
+                self.logger.error(f"Dashboard update error: {e}")
+                self.status_label.config(text="Update error - check logs", fg='red')
+
+
     def start_scanning(self):
         if not self.scanning:
             # Initialize exchange connection
@@ -407,6 +584,142 @@ class ScannerGUI(MarketScanner):
                 if volume > self.min_volume and volatility > self.min_volatility:
                     filtered.append(market)
         return filtered
+    def fetch_market_news(self, market):
+        try:
+            # Extract base asset from market pair (e.g., 'BTC' from 'BTC/USDT')
+            base_asset = market.split('/')[0]
+            
+            # Fetch news data
+            news_data = {
+                'market': market,
+                'sentiment': self.analyze_market_sentiment(market),
+                'volume_profile': self.analyze_volume_profile(
+                    self.fetch_market_data(market, '1h', limit=100)
+                ),
+                'technical_signals': self.get_technical_sentiment(
+                 
+                    self.fetch_market_data(market, '1h', limit=100)
+                )
+            }
+            
+            return news_data
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching news for {market}: {e}")
+            return None
+    def fetch_market_data(self, market, timeframe, limit=100):
+        # Skip all USDT/ pairs
+        if market.startswith('USDT/'):
+            return None
+            
+        try:
+            ohlcv = self.binance.fetch_ohlcv(market, timeframe, limit=limit)
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            return df
+        except Exception as e:
+            self.logger.error(f"Data fetch error for {market}: {e}")
+            return None
+
+    def fetch_social_metrics(self, market):
+        # Skip all USDT/ pairs
+        if market.startswith('USDT/'):
+            return {
+                'market': market,
+                'sentiment_score': 0,
+                'volume_analysis': [],
+                'market_strength': 0,
+                'funding_rate': 0
+            }
+            
+        try:
+            base_asset = market.split('/')[0]
+            market_data = self.fetch_market_data(market, '1h', limit=100)
+            
+            if market_data is None:
+                return None
+                
+            return {
+                'market': market,
+                'sentiment_score': self.calculate_sentiment_score({
+                    'price_action': self.analyze_price_action(market_data),
+                    'volume_profile': self.analyze_volume_profile(market_data),
+                    'technical_signals': self.get_technical_sentiment(market_data),
+                    'funding_rate': 0
+                }),
+                'volume_analysis': self.analyze_volume_patterns(market_data),
+                'market_strength': self.detect_trend_strength(market_data)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching social metrics for {market}: {e}")
+            return None
+
+    def analyze_price_action(self, df):
+        if df is None or df.empty:
+            return {'trend': 'neutral'}
+            
+        try:
+            # Calculate basic indicators first
+            df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
+            df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
+            df['returns'] = df['close'].pct_change()
+            df['volatility'] = df['returns'].rolling(window=20).std()
+            
+            # Skip USDT/BRL pair
+            if 'USDT/BRL' in str(df):
+                return {
+                    'trend': 'neutral',
+                    'volatility': 0,
+                    'trend_strength': 0,
+                    'momentum': 0
+                }
+                
+            current_price = df['close'].iloc[-1]
+            trend = 'neutral'
+            
+            if not df['ema_20'].isna().all() and not df['ema_50'].isna().all():
+                ema20 = df['ema_20'].iloc[-1]
+                ema50 = df['ema_50'].iloc[-1]
+                trend = 'uptrend' if current_price > ema20 > ema50 else 'downtrend' if current_price < ema20 < ema50 else 'neutral'
+            
+            return {
+                'trend': trend,
+                'volatility': df['volatility'].iloc[-1] if not df['volatility'].isna().all() else 0,
+                'trend_strength': self.detect_trend_strength(df),
+                'momentum': df['returns'].iloc[-5:].mean() if not df['returns'].isna().all() else 0
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in analyze_price_action: {e}")
+            return {
+                'trend': 'neutral',
+                'volatility': 0,
+                'trend_strength': 0,
+                'momentum': 0
+            }
+
+
+    def analyze_news_sentiment(self, market):
+        base_asset = market.split('/')[0]
+        
+        market_data = self.fetch_market_data(market, '1h', limit=100)
+        technical_sentiment = self.get_technical_sentiment(market_data)
+        volume_profile = self.analyze_volume_profile(market_data)
+        
+        sentiment_data = {
+            'market': market,
+            'technical_sentiment': technical_sentiment,
+            'volume_analysis': volume_profile,
+            'overall_score': self.calculate_sentiment_score({
+                'price_action': self.analyze_price_action(market_data),
+                'volume_profile': volume_profile,
+                'technical_signals': technical_sentiment
+            })
+        }
+        
+        return sentiment_data
+
 def main():
     root = tk.Tk()
     app = ScannerGUI(root)

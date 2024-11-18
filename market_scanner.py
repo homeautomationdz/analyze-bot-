@@ -3192,29 +3192,8 @@ class MarketScanner(BaseScanner):
             }
         return risk_adjustments
 
-    def dynamic_position_sizing(self, market, signal):
-        volatility = self.calculate_market_volatility(market)
-        correlation_factor = self.get_portfolio_correlation(market)
-        account_risk = self.calculate_account_risk()
-        
-        base_position = self.calculate_position_size(signal)
-        adjusted_position = base_position * (1 - correlation_factor) * (1 - volatility)
-        
-        return min(adjusted_position, account_risk['max_position'])
 
-    def portfolio_correlation_manager(self):
-        portfolio = self.get_active_positions()
-        correlation_matrix = self.market_correlation_analysis()
-        
-        risk_adjustments = {}
-        for market in portfolio:
-            corr_score = correlation_matrix[market].mean()
-            risk_adjustments[market] = {
-                'current_exposure': portfolio[market]['exposure'],
-                'suggested_adjustment': 1 - corr_score,
-                'max_allowed': self.calculate_max_exposure(market)
-            }
-        return risk_adjustments
+
 
     def calculate_position_size(self, signal, risk_percentage=1.0):
         account_balance = float(self.binance.fetch_balance()['total']['USDT'])
@@ -3321,23 +3300,7 @@ class MarketScanner(BaseScanner):
             
             # Update dashboard
             self.update_performance_dashboard(signal, backtest_results)
-    def calculate_win_rate(self):
-        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if not trades:
-            return 0.0
-            
-        winning_trades = sum(1 for trade in trades if trade.get('pnl', 0) > 0)
-        return (winning_trades / len(trades)) * 100
 
-    def calculate_profit_factor(self):
-        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if not trades:
-            return 0.0
-            
-        gross_profit = sum(trade.get('pnl', 0) for trade in trades if trade.get('pnl', 0) > 0)
-        gross_loss = abs(sum(trade.get('pnl', 0) for trade in trades if trade.get('pnl', 0) < 0))
-        
-        return gross_profit / gross_loss if gross_loss else 0.0
 
     def calculate_var(self, confidence_level=0.95):
         trades = self.sql_operations('fetch', self.db_signals, 'Signals')
@@ -3352,46 +3315,6 @@ class MarketScanner(BaseScanner):
         total_exposure = sum(abs(float(pos['notional'])) for pos in active_positions if pos['notional'])
         return total_exposure
 
-    def reduce_position(self, symbol, position):
-        reduction_amount = position['size'] * 0.5  # Reduce by 50%
-        
-        try:
-            order = self.binance.create_order(
-                symbol=symbol,
-                type='MARKET',
-                side='sell' if position['side'] == 'buy' else 'buy',
-                amount=reduction_amount
-            )
-            
-            # Update position size
-            position['size'] -= reduction_amount
-            self.logger.info(f"Position reduced for {symbol}: {reduction_amount}")
-            
-            return order
-        except Exception as e:
-            self.logger.error(f"Error reducing position: {e}")
-            return None
-
-    def close_position(self, symbol, position):
-        try:
-            order = self.binance.create_order(
-                symbol=symbol,
-                type='MARKET',
-                side='sell' if position['side'] == 'buy' else 'buy',
-                amount=position['size']
-            )
-            
-            # Remove position from tracking
-            del self.active_positions[symbol]
-            self.logger.info(f"Position closed for {symbol}")
-            
-            # Record trade history
-            self.record_trade_history(symbol, position, order)
-            
-            return order
-        except Exception as e:
-            self.logger.error(f"Error closing position: {e}")
-            return None
 
 
 

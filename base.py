@@ -29,7 +29,7 @@ class BaseScanner(tk.Frame):
         # Window configuration
         if self.master:
             self.master.title("Market Scanner")
-            self.master.configure(bg="#000000")
+            self.master.configure(bg="#E6E6E6")
         
         # System configuration
         self.tm = int(datetime.now().timestamp())
