@@ -618,6 +618,333 @@ class BaseScanner(tk.Frame):
             'confidence_level': self.calculate_sentiment_confidence(sentiment_scores)
         }
 
+    def fetch_market_news(self, market):
+        try:
+            # Extract base asset from market pair
+            base_asset = market.split('/')[0]
+            
+            # Fetch market data
+            news_data = {
+                'market': market,
+                'sentiment': self.analyze_market_sentiment(market),
+                'volume_profile': self.analyze_volume_profile(
+                    self.fetch_market_data(market, '1h', limit=100)
+                ),
+                'technical_signals': self.get_technical_sentiment(
+                    self.fetch_market_data(market, '1h', limit=100)
+                )
+            }
+            
+            return news_data
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching news for {market}: {e}")
+            return None
+
+    def fetch_social_metrics(self, market):
+        try:
+            # Extract base asset from market pair
+            base_asset = market.split('/')[0]
+            
+            # Initialize default metrics
+            social_metrics = {
+                'market': market,
+                'sentiment_score': 0.0,
+                'volume_score': 0.0,
+                'social_volume': 0.0,
+                'trend_strength': 0.0
+            }
+            
+            # Calculate metrics from available data
+            market_data = self.fetch_market_data(market, '1h', limit=24)
+            if market_data is not None:
+                # Volume-based social score
+                volume_mean = market_data['volume'].mean()
+                volume_std = market_data['volume'].std()
+                social_metrics['volume_score'] = (market_data['volume'].iloc[-1] - volume_mean) / volume_std if volume_std > 0 else 0
+                
+                # Trend strength
+                social_metrics['trend_strength'] = self.detect_trend_strength(market_data)
+                
+                # Overall sentiment
+                sentiment_data = self.analyze_market_sentiment(market)
+                social_metrics['sentiment_score'] = sentiment_data.get('sentiment_score', 0.0)
+                
+            return social_metrics
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating social metrics for {market}: {e}")
+            return None
+    def analyze_news_sentiment(self, market):
+        try:
+            # Initialize sentiment metrics
+            sentiment_data = {
+                'market': market,
+                'overall_score': 0.0,
+                'technical_score': 0.0,
+                'volume_score': 0.0,
+                'momentum_score': 0.0
+            }
+            
+            # Get market data without recursion
+            df = self.fetch_market_data(market, '1h', limit=24)
+            if df is not None:
+                # Technical analysis score
+                technical = self.get_technical_sentiment(df)
+                sentiment_data['technical_score'] = (
+                    1.0 if technical['rsi_sentiment'] == 'oversold' else
+                    0.5 if technical['rsi_sentiment'] == 'neutral' else 0.0
+                )
+                
+                # Volume analysis
+                volume_profile = self.analyze_volume_profile(df)
+                if volume_profile:
+                    sentiment_data['volume_score'] = (
+                        1.0 if volume_profile['volume_trend'] == 'increasing' else 0.0
+                    )
+                
+                # Calculate overall score
+                sentiment_data['overall_score'] = (
+                    sentiment_data['technical_score'] * 0.5 +
+                    sentiment_data['volume_score'] * 0.3 +
+                    sentiment_data['momentum_score'] * 0.2
+                )
+                
+            return sentiment_data
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing news sentiment for {market}: {e}")
+            return None
+    def analyze_social_sentiment(self, market):
+        if not market or not isinstance(market, str):
+            return None
+            
+        try:
+            sentiment_data = {
+                'market': market,
+                'social_score': 0.0,
+                'volume_impact': 0.0,
+                'trend_score': 0.0,
+                'overall_sentiment': 'neutral'
+            }
+            
+            # Fetch market data with proper error handling
+            df = self.fetch_market_data(market, '1h', limit=24)
+            if df is not None and not df.empty:
+                # Volume analysis
+                volume_profile = self.analyze_volume_profile(df)
+                if volume_profile:
+                    sentiment_data['volume_impact'] = 1.0 if volume_profile['volume_trend'] == 'increasing' else 0.0
+                
+                # Trend analysis
+                trend_strength = self.detect_trend_strength(df)
+                sentiment_data['trend_score'] = trend_strength / 100.0 if trend_strength else 0.0
+                
+                # Technical sentiment
+                tech_sentiment = self.get_technical_sentiment(df)
+                if tech_sentiment:
+                    sentiment_data['social_score'] = (
+                        1.0 if tech_sentiment['rsi_sentiment'] == 'oversold' else
+                        0.5 if tech_sentiment['rsi_sentiment'] == 'neutral' else 0.0
+                    )
+                
+                # Calculate overall sentiment
+                overall_score = (
+                    sentiment_data['social_score'] * 0.4 +
+                    sentiment_data['volume_impact'] * 0.3 +
+                    sentiment_data['trend_score'] * 0.3
+                )
+                
+                sentiment_data['overall_sentiment'] = (
+                    'bullish' if overall_score > 0.7 else
+                    'bearish' if overall_score < 0.3 else
+                    'neutral'
+                )
+                
+            return sentiment_data
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing social sentiment for {market}: {e}")
+            return None
+
+    def analyze_technical_sentiment(self, market):
+        if not market or not isinstance(market, str):
+            return None
+            
+        try:
+            technical_data = {
+                'market': market,
+                'indicators': {},
+                'patterns': [],
+                'strength': 0.0,
+                'signal': 'neutral'
+            }
+            
+            # Fetch market data with proper error handling
+            df = self.fetch_market_data(market, '1h', limit=100)
+            if df is not None and not df.empty:
+                # Calculate technical indicators
+                df['rsi'] = talib.RSI(df['close'])
+                df['macd'], df['macd_signal'], _ = talib.MACD(df['close'])
+                df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
+                df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
+                
+                latest = df.iloc[-1]
+                
+                # Analyze indicators
+                technical_data['indicators'] = {
+                    'rsi': {
+                        'value': latest['rsi'],
+                        'signal': 'oversold' if latest['rsi'] < 30 else 'overbought' if latest['rsi'] > 70 else 'neutral'
+                    },
+                    'macd': {
+                        'value': latest['macd'],
+                        'signal': 'bullish' if latest['macd'] > latest['macd_signal'] else 'bearish'
+                    },
+                    'ema': {
+                        'signal': 'bullish' if latest['ema_20'] > latest['ema_50'] else 'bearish'
+                    }
+                }
+                
+                # Calculate strength score
+                strength_factors = {
+                    'rsi': 0.3,
+                    'macd': 0.4,
+                    'ema': 0.3
+                }
+                
+                technical_data['strength'] = sum([
+                    strength_factors['rsi'] * (1.0 if technical_data['indicators']['rsi']['signal'] == 'oversold' else 0.0),
+                    strength_factors['macd'] * (1.0 if technical_data['indicators']['macd']['signal'] == 'bullish' else 0.0),
+                    strength_factors['ema'] * (1.0 if technical_data['indicators']['ema']['signal'] == 'bullish' else 0.0)
+                ])
+                
+                # Determine overall signal
+                technical_data['signal'] = (
+                    'strong_buy' if technical_data['strength'] > 0.7 else
+                    'buy' if technical_data['strength'] > 0.5 else
+                    'sell' if technical_data['strength'] < 0.3 else
+                    'neutral'
+                )
+                
+            return technical_data
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing technical sentiment for {market}: {e}")
+            return None
+
+    def combine_sentiment_scores(self, market):
+        if not market or not isinstance(market, str):
+            return None
+            
+        try:
+            # Initialize combined sentiment data
+            combined_data = {
+                'market': market,
+                'technical_score': 0.0,
+                'social_score': 0.0,
+                'news_score': 0.0,
+                'overall_score': 0.0,
+                'signal': 'neutral'
+            }
+            
+            # Get individual sentiment scores
+            technical = self.analyze_technical_sentiment(market)
+            social = self.analyze_social_sentiment(market)
+            news = self.analyze_news_sentiment(market)
+            
+            # Weight factors for different sentiment types
+            weights = {
+                'technical': 0.5,
+                'social': 0.3,
+                'news': 0.2
+            }
+            
+            # Calculate weighted scores
+            if technical:
+                combined_data['technical_score'] = technical['strength'] * weights['technical']
+            if social:
+                combined_data['social_score'] = (
+                    social['social_score'] * weights['social']
+                    if 'social_score' in social else 0.0
+                )
+            if news:
+                combined_data['news_score'] = (
+                    news['overall_score'] * weights['news']
+                    if 'overall_score' in news else 0.0
+                )
+                
+            # Calculate overall score
+            combined_data['overall_score'] = (
+                combined_data['technical_score'] +
+                combined_data['social_score'] +
+                combined_data['news_score']
+            )
+            
+            # Determine signal based on overall score
+            combined_data['signal'] = (
+                'strong_buy' if combined_data['overall_score'] > 0.7 else
+                'buy' if combined_data['overall_score'] > 0.5 else
+                'sell' if combined_data['overall_score'] < 0.3 else
+                'neutral'
+            )
+            
+            return combined_data
+            
+        except Exception as e:
+            self.logger.error(f"Error combining sentiment scores for {market}: {e}")
+            return None
+    def calculate_sentiment_confidence(self, market):
+        if not market or not isinstance(market, str):
+            return None
+            
+        try:
+            confidence_data = {
+                'market': market,
+                'confidence_score': 0.0,
+                'signal_strength': 'weak',
+                'confirmation_count': 0,
+                'metrics': {}
+            }
+            
+            # Get sentiment data
+            technical = self.analyze_technical_sentiment(market)
+            social = self.analyze_social_sentiment(market)
+            news = self.analyze_news_sentiment(market)
+            
+            # Count confirmations
+            signals = []
+            if technical and technical.get('signal') != 'neutral':
+                signals.append(technical['signal'])
+                confidence_data['metrics']['technical'] = technical['strength']
+                
+            if social and social.get('overall_sentiment') != 'neutral':
+                signals.append(social['overall_sentiment'])
+                confidence_data['metrics']['social'] = social.get('social_score', 0.0)
+                
+            if news and news.get('overall_score', 0) > 0:
+                signals.append('bullish' if news['overall_score'] > 0.5 else 'bearish')
+                confidence_data['metrics']['news'] = news['overall_score']
+            
+            # Calculate confidence score
+            confidence_data['confirmation_count'] = len(signals)
+            if confidence_data['confirmation_count'] > 0:
+                confidence_data['confidence_score'] = sum(confidence_data['metrics'].values()) / len(signals)
+                
+            # Determine signal strength
+            confidence_data['signal_strength'] = (
+                'very_strong' if confidence_data['confidence_score'] > 0.8 else
+                'strong' if confidence_data['confidence_score'] > 0.6 else
+                'moderate' if confidence_data['confidence_score'] > 0.4 else
+                'weak'
+            )
+            
+            return confidence_data
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating sentiment confidence for {market}: {e}")
+            return None
+
     def prepare_prediction_features(self, df):
         # Technical indicators
         df['rsi'] = talib.RSI(df['close'])

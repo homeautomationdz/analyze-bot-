@@ -46,16 +46,16 @@ class MarketScanner(BaseScanner):
                     df = self.fetch_market_data(market, timeframe)
 
                     if df is not None and not df.empty:
-                        # Original signal generation
+                        # Signal generation and validation
                         signals = self.generate_signals(df)
                         validated_signals = self.validate_signals_with_trailing(signals, market)
                         filtered_signals = self.filter_signals(validated_signals, market)
 
-                        # New strategy signals
+                        # Strategy signals
                         htf_wick_signal = self.detect_htf_support_wick(market)
                         drop_recovery_signal = self.detect_support_drop_recovery(market)
 
-                        # Combine all signals
+                        # Combine signals
                         all_signals = []
                         if filtered_signals:
                             all_signals.extend(filtered_signals)
@@ -64,17 +64,23 @@ class MarketScanner(BaseScanner):
                         if drop_recovery_signal:
                             all_signals.append(drop_recovery_signal)
 
-                        # Process all signals together
+                        # Process signals
                         if all_signals:
                             self.process_signals(market, timeframe, all_signals)
                             self.store_signals_db(all_signals, market, timeframe)
                             self.update_trailing_stops(market, df['close'].iloc[-1])
+
+                            # Update UI components
+                            self.master.after(100, self.update_signals_display)
+                            self.master.after(100, self.update_performance_metrics)
+                            self.master.after(100, self.update_market_overview)
 
                     time.sleep(0.1)
 
             except Exception as e:
                 self.logger.error(f"Scanning error: {e}")
                 time.sleep(5)
+
 
 
 
@@ -3004,6 +3010,9 @@ class MarketScanner(BaseScanner):
         return filtered_signals
 
     def fetch_market_data(self, market, timeframe, limit=100):
+        if market.startswith('USDT/'):
+            return None
+            
         try:
             ohlcv = self.binance.fetch_ohlcv(market, timeframe, limit=limit)
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -3012,6 +3021,81 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Data fetch error for {market}: {e}")
             return None
+    def analyze_market(self, market, timeframe):
+        try:
+            df = self.fetch_market_data(market, timeframe)
+            if df is not None and not df.empty:
+                # Calculate technical indicators
+                df['rsi'] = talib.RSI(df['close'])
+                df['macd'], df['macd_signal'], df['macd_hist'] = talib.MACD(df['close'])
+                df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
+                df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
+                
+                volume_profile = self.analyze_volume_profile(df)
+                signals = self.generate_signals(df)
+                
+                if volume_profile and signals:
+                    for signal in signals:
+                        signal['volume_context'] = volume_profile['volume_trend']
+                        signal['vwap'] = volume_profile['vwap']
+                
+                if signals:
+                    for signal in signals:
+                        message = (
+                            f"🔔 Signal Alert!\n"
+                            f"Market: {market}\n"
+                            f"Signal: {signal['type']}\n"
+                            f"Price: {signal['price']}\n"
+                            f"VWAP: {signal.get('vwap', 'N/A')}\n"
+                            f"Volume Trend: {signal.get('volume_context', 'N/A')}\n"
+                            f"RSI: {df['rsi'].iloc[-1]:.2f}\n"
+                            f"Timeframe: {timeframe}"
+                        )
+                        self.send_telegram_update(message)
+                        
+                        self.sql_operations('insert', self.db_signals, 'Signals',
+                                        market=market,
+                                        timeframe=timeframe,
+                                        signal_type=signal['type'],
+                                        price=signal['price'],
+                                        volume_trend=signal.get('volume_context', ''),
+                                        vwap=signal.get('vwap', 0.0),
+                                        rsi=df['rsi'].iloc[-1],
+                                        timestamp=str(datetime.now()))
+                        
+        except Exception as e:
+            self.logger.error(f"Error analyzing market {market}: {e}")
+
+    def _analyze_volume_data(self, df):
+        """Analyze volume patterns efficiently"""
+        return {
+            'volume_sma': df['volume'].rolling(20).mean().iloc[-1],
+            'volume_trend': 'increasing' if df['volume'].is_monotonic_increasing else 'decreasing',
+            'volume_ratio': df['volume'].iloc[-1] / df['volume'].rolling(20).mean().iloc[-1]
+        }
+
+    def _calculate_base_sentiment(self, df):
+        """Calculate base sentiment metrics"""
+        return {
+            'price_trend': 'bullish' if df['close'].iloc[-1] > df['close'].iloc[-2] else 'bearish',
+            'volume_impact': 'high' if df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] else 'low',
+            'momentum': df['close'].pct_change().iloc[-1]
+        }
+
+    def _generate_market_analysis(self, market_data):
+        """Generate final market analysis"""
+        if not market_data:
+            return None
+            
+        return {
+            'market': market_data['market'],
+            'analysis': {
+                'technical_score': self._calculate_technical_score(market_data['technical']),
+                'volume_score': self._calculate_volume_score(market_data['volume']),
+                'sentiment_score': self._calculate_sentiment_score(market_data['sentiment'])
+            },
+            'signals': self._generate_signals(market_data)
+        }
     def classify_trading_style(self, signal_data, timeframe):
         # Day trading timeframes
         day_trading_timeframes = ['1m', '5m', '15m', '30m', '1h']
