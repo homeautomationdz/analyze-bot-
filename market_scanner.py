@@ -11,7 +11,6 @@ class MarketScanner(BaseScanner):
         super().__init__(master)
         self.setup_rate_limiting()
         self.setup_trailing_stops()
-
     def setup_rate_limiting(self):
         self.rate_limits = {
             'api_calls': 0,
@@ -19,7 +18,6 @@ class MarketScanner(BaseScanner):
             'max_calls_per_minute': 1200,
             'cooldown_period': 60
         }
-
     def setup_trailing_stops(self):
         self.trailing_data = {
             'highest_price': {},
@@ -27,10 +25,26 @@ class MarketScanner(BaseScanner):
             'stop_levels': {},
             'active_signals': set()
         }
+    def setup_blacklist(self):
+        self.blacklist = set()
+        self.blacklist_file = 'config/blacklist.json'
+        self.load_blacklist()
 
+    def load_blacklist(self):
+        try:
+            with open(self.blacklist_file, 'r') as f:
+                self.blacklist = set(json.load(f))
+        except FileNotFoundError:
+            self.save_blacklist()
+
+    def save_blacklist(self):
+        with open(self.blacklist_file, 'w') as f:
+            json.dump(list(self.blacklist), f)
     def scan_for_signals(self):
         while self.scanning:
             try:
+                markets = self.change(self.choose_list.get()) if self.user_choice.get() == 0 else self.selected_markets
+                markets = [m for m in markets if m not in self.blacklist]
                 self.check_rate_limit()
 
                 if self.user_choice.get() == 0:
@@ -80,11 +94,6 @@ class MarketScanner(BaseScanner):
             except Exception as e:
                 self.logger.error(f"Scanning error: {e}")
                 time.sleep(5)
-
-
-
-
-
     def find_liquidity_clusters(self, orders):
         clusters = []
         volume_threshold = orders['volume'].mean() * 2
@@ -99,7 +108,6 @@ class MarketScanner(BaseScanner):
                 })
         
         return clusters
-
     def calculate_order_imbalance(self, order_book):
         bid_volume = sum(bid[1] for bid in order_book['bids'][:10])
         ask_volume = sum(ask[1] for ask in order_book['asks'][:10])
@@ -111,8 +119,6 @@ class MarketScanner(BaseScanner):
             'ask_volume': ask_volume,
             'bias': 'bullish' if imbalance_ratio > 0.6 else 'bearish' if imbalance_ratio < 0.4 else 'neutral'
         }
-
-
     def track_large_orders(self, trades):
         df = pd.DataFrame(trades)
         volume_threshold = df['amount'].mean() * 3
@@ -121,7 +127,6 @@ class MarketScanner(BaseScanner):
         large_trades['impact'] = self.calculate_price_impact(large_trades)
         
         return large_trades.to_dict('records')
-
     def detect_iceberg_orders(self, market):
         timeframes = ['1m', '5m', '15m']
         iceberg_patterns = []
@@ -133,7 +138,6 @@ class MarketScanner(BaseScanner):
                 iceberg_patterns.extend(patterns)
         
         return iceberg_patterns
-
     def find_accumulation_zones(self, market):
         df = self.fetch_market_data(market, '1h', limit=200)
         zones = []
@@ -151,7 +155,6 @@ class MarketScanner(BaseScanner):
                     })
         
         return zones
-
     def identify_institutional_levels(self, market):
         df = self.fetch_market_data(market, '4h', limit=500)
         levels = []
@@ -171,8 +174,6 @@ class MarketScanner(BaseScanner):
                     })
         
         return levels
-
-
     def calculate_volume_nodes(self, df):
         price_bins = pd.qcut(df['close'], q=50, duplicates='drop')
         volume_profile = df.groupby(price_bins)['volume'].sum()
@@ -186,7 +187,6 @@ class MarketScanner(BaseScanner):
             })
         
         return sorted(nodes, key=lambda x: x['volume'], reverse=True)
-
     def analyze_poc_levels(self, df):
         volume_nodes = self.calculate_volume_nodes(df)
         poc_level = max(volume_nodes, key=lambda x: x['volume'])
@@ -197,7 +197,6 @@ class MarketScanner(BaseScanner):
             'poc_strength': poc_level['strength'],
             'value_area': self.calculate_value_area_range(volume_nodes)
         }
-
     def calculate_value_areas(self, df):
         volume_nodes = self.calculate_volume_nodes(df)
         total_volume = sum(node['volume'] for node in volume_nodes)
@@ -221,7 +220,6 @@ class MarketScanner(BaseScanner):
                 value_areas['low_volume'].append(node)
         
         return value_areas
-
     def find_volume_opportunities(self, profile_data):
         opportunities = []
         poc = profile_data['profile']['poc_analysis']
@@ -255,7 +253,6 @@ class MarketScanner(BaseScanner):
             'lower': min(node['price_level'] for node in value_area_nodes),
             'nodes': value_area_nodes
         }
-
     def is_trading_opportunity(self, node, poc, key_levels):
         price_level = node['price_level']
         
@@ -274,7 +271,6 @@ class MarketScanner(BaseScanner):
         )
         
         return near_key_level and volume_significant and in_value_area
-
     def determine_opportunity_type(self, node, poc):
         price = node['price_level']
         poc_price = poc['poc_price']
@@ -283,7 +279,6 @@ class MarketScanner(BaseScanner):
             return 'resistance' if node['volume'] > poc['poc_volume'] else 'weak_resistance'
         else:
             return 'support' if node['volume'] > poc['poc_volume'] else 'weak_support'
-
     def calculate_opportunity_strength(self, node, profile_data):
         base_strength = node['strength']
         
@@ -301,14 +296,12 @@ class MarketScanner(BaseScanner):
                 base_strength *= 1.3
         
         return min(base_strength, 10.0)  # Cap strength at 10
-
     def find_peaks(self, data, distance=10):
         peaks = []
         for i in range(distance, len(data) - distance):
             if all(data[i] > data[j] for j in range(i-distance, i+distance+1) if i != j):
                 peaks.append(i)
         return peaks
-
     def validate_shoulder(self, df, peaks, position):
         if not peaks or abs(position) >= len(peaks):
             return None
@@ -319,7 +312,6 @@ class MarketScanner(BaseScanner):
             'volume': df['volume'].iloc[peak_idx],
             'index': peak_idx
         }
-
     def validate_head(self, df, peaks, troughs):
         if len(peaks) < 3 or len(troughs) < 2:
             return None
@@ -334,7 +326,6 @@ class MarketScanner(BaseScanner):
             'volume': df['volume'].iloc[head_idx],
             'index': head_idx
         }
-
     def calculate_neckline(self, df, troughs):
         if len(troughs) < 2:
             return None
@@ -351,7 +342,6 @@ class MarketScanner(BaseScanner):
             'left_point': (left_trough, df['low'].iloc[left_trough]),
             'right_point': (right_trough, df['low'].iloc[right_trough])
         }
-
     def calculate_hs_target(self, pattern_data):
         neckline = pattern_data['neckline']
         head_price = pattern_data['head']['price']
@@ -368,11 +358,8 @@ class MarketScanner(BaseScanner):
             'height': height,
             'risk_reward': self.calculate_risk_reward(target, neckline_price, head_price)
         }
-
-
     def get_neckline_price(self, neckline, index):
         return neckline['slope'] * index + neckline['intercept']
-
     def calculate_pattern_completion(self, df, pattern_data):
         completion_data = {
             'status': 'incomplete',
@@ -450,7 +437,6 @@ class MarketScanner(BaseScanner):
                 current_macd < current_macd_signal
             ])
         }
-
     def filter_patterns(self, df, patterns):
         filtered_patterns = []
         
@@ -469,7 +455,6 @@ class MarketScanner(BaseScanner):
                 filtered_patterns.append(pattern)
         
         return filtered_patterns
-
     def calculate_pattern_quality(self, df, pattern):
         scores = []
         
@@ -498,7 +483,6 @@ class MarketScanner(BaseScanner):
         
         avg_volume = df['volume'].mean()
         return all(vol > avg_volume for vol in pattern_volumes)
-
     def validate_market_context(self, df, pattern):
         # Check market trend
         trend = self.detect_trend_strength(df)
@@ -567,7 +551,6 @@ class MarketScanner(BaseScanner):
             score += 0.2
             
         return score
-
     def get_pattern_volumes(self, df, pattern):
         ls_vol = df['volume'].iloc[pattern['left_shoulder']['index']]
         h_vol = df['volume'].iloc[pattern['head']['index']]
@@ -579,7 +562,6 @@ class MarketScanner(BaseScanner):
             'right_shoulder': rs_vol,
             'shoulders_avg': (ls_vol + rs_vol) / 2
         }
-
     def check_volume_consistency(self, df, pattern):
         # Get volume for pattern formation period
         start_idx = pattern['left_shoulder']['index']
@@ -592,7 +574,6 @@ class MarketScanner(BaseScanner):
         coefficient_variation = volume_std / volume_mean
         
         return coefficient_variation < 0.5
-
     def check_level_interaction(self, df, pattern):
         # Get key price levels
         levels = self.identify_key_levels(df)
@@ -604,7 +585,6 @@ class MarketScanner(BaseScanner):
                 return True
                 
         return False
-
     def identify_key_levels(self, df):
         levels = []
         
@@ -638,7 +618,6 @@ class MarketScanner(BaseScanner):
                     supports.append(price)
         
         return supports
-
     def find_resistance_levels(self, df):
         resistances = []
         window = 20
@@ -650,26 +629,22 @@ class MarketScanner(BaseScanner):
                     resistances.append(price)
         
         return resistances
-
     def is_support(self, df, index):
         current_low = df['low'].iloc[index]
         for i in range(index - 5, index + 6):
             if i != index and df['low'].iloc[i] < current_low:
                 return False
         return True
-
     def is_resistance(self, df, index):
         current_high = df['high'].iloc[index]
         for i in range(index - 5, index + 6):
             if i != index and df['high'].iloc[i] > current_high:
                 return False
         return True
-
     def is_duplicate_level(self, levels, price):
         if not levels:
             return False
         return any(abs(level - price) / price < 0.001 for level in levels)
-
     def calculate_level_strength(self, df, level_price):
         touches = 0
         bounces = 0
@@ -694,7 +669,6 @@ class MarketScanner(BaseScanner):
         }
         
         return all(validation.values())
-
     def validate_price_structure(self, pattern):
         ls_price = pattern['left_shoulder']['price']
         h_price = pattern['head']['price']
@@ -707,7 +681,6 @@ class MarketScanner(BaseScanner):
         # Shoulders should be within 10% of each other
         shoulder_diff = abs(ls_price - rs_price) / ls_price
         return shoulder_diff <= 0.10
-
     def validate_time_structure(self, pattern):
         ls_idx = pattern['left_shoulder']['index']
         h_idx = pattern['head']['index']
@@ -719,7 +692,6 @@ class MarketScanner(BaseScanner):
         
         time_symmetry = abs(left_span - right_span) / left_span
         return time_symmetry <= 0.20
-
     def validate_volume_structure(self, df, pattern):
         volumes = self.get_pattern_volumes(df, pattern)
         
@@ -729,7 +701,6 @@ class MarketScanner(BaseScanner):
         
         # Volume should decline in right shoulder
         return volumes['right_shoulder'] < volumes['left_shoulder']
-
     def validate_momentum_structure(self, df, pattern):
         # Calculate momentum indicators at pattern points
         rsi = talib.RSI(df['close'])
@@ -754,12 +725,10 @@ class MarketScanner(BaseScanner):
             'stop_loss': pattern['head']['price'],
             'risk_reward': self.calculate_target_risk_reward(pattern_height, neckline_price)
         }
-
     def calculate_target_risk_reward(self, height, neckline):
         reward = height
         risk = height * 0.3  # Stop loss at 30% of pattern height
         return reward / risk
-
     def validate_pattern_completion(self, df, pattern):
         current_price = df['close'].iloc[-1]
         neckline_price = self.get_neckline_price(pattern['neckline'], len(df)-1)
@@ -777,7 +746,6 @@ class MarketScanner(BaseScanner):
             )
         
         return completion_data
-
     def analyze_breakout_confirmation(self, df, pattern, neckline_price):
         recent_volume = df['volume'].iloc[-5:].mean()
         pattern_volume = df['volume'].iloc[-20:].mean()
@@ -789,7 +757,7 @@ class MarketScanner(BaseScanner):
             'confirmation_level': self.calculate_confirmation_strength(df, pattern),
             'volume_confirmation': recent_volume > pattern_volume * 1.5,
             'momentum_confirmation': momentum['overall_confirmation']
-        }
+        }    
     def calculate_confirmation_strength(self, df, pattern):
         confirmation_factors = {
             'price_action': self.analyze_price_confirmation(df),
@@ -799,7 +767,6 @@ class MarketScanner(BaseScanner):
         }
         
         return self.weighted_confirmation_score(confirmation_factors)
-
     def analyze_price_confirmation(self, df):
         recent_candles = df.tail(5)
         
@@ -810,7 +777,6 @@ class MarketScanner(BaseScanner):
             'no_upper_wicks': all(candle['high'] - candle['open'] < candle['open'] - candle['close'] * 0.3 
                                 for _, candle in recent_candles.iterrows())
         }
-
     def analyze_technical_confirmation(self, df):
         rsi = talib.RSI(df['close'])
         macd, signal, _ = talib.MACD(df['close'])
@@ -821,7 +787,6 @@ class MarketScanner(BaseScanner):
             'macd_bearish': macd.iloc[-1] < signal.iloc[-1],
             'strong_trend': adx.iloc[-1] > 25
         }
-
     def weighted_confirmation_score(self, factors):
         weights = {
             'price_action': 0.4,
@@ -846,7 +811,6 @@ class MarketScanner(BaseScanner):
             'liquidity_analysis': self.analyze_market_liquidity(df),
             'correlation_impact': self.analyze_market_correlations(df)
         }
-
     def analyze_market_trend(self, df):
         ema20 = talib.EMA(df['close'], timeperiod=20)
         ema50 = talib.EMA(df['close'], timeperiod=50)
@@ -860,7 +824,6 @@ class MarketScanner(BaseScanner):
         }
         
         return self.classify_trend_state(trend_data)
-
     def analyze_market_volatility(self, df):
         atr = talib.ATR(df['high'], df['low'], df['close'])
         volatility = df['close'].pct_change().std()
@@ -871,7 +834,6 @@ class MarketScanner(BaseScanner):
             'volatility_regime': self.classify_volatility(volatility),
             'volatility_trend': self.analyze_volatility_trend(atr)
         }
-
     def analyze_market_liquidity(self, df):
         volume_ma = df['volume'].rolling(window=20).mean()
         spread = df['high'] - df['low']
@@ -882,7 +844,6 @@ class MarketScanner(BaseScanner):
             'liquidity_score': self.calculate_liquidity_score(df),
             'market_depth': self.analyze_market_depth()
         }
-
     def analyze_market_correlations(self, df):
         btc_correlation = self.calculate_btc_correlation(df)
         sector_correlation = self.calculate_sector_correlation(df)
@@ -892,13 +853,11 @@ class MarketScanner(BaseScanner):
             'sector_correlation': sector_correlation,
             'correlation_impact': self.assess_correlation_impact(btc_correlation, sector_correlation)
         }
-
     def calculate_btc_correlation(self, df):
         btc_data = self.fetch_market_data('BTC/USDT', df.index[0])
         if btc_data is not None:
             return df['close'].corr(btc_data['close'])
         return 0
-
     def calculate_sector_correlation(self, df):
         sector_pairs = self.get_sector_pairs(df.name)
         correlations = []
@@ -910,7 +869,6 @@ class MarketScanner(BaseScanner):
                 correlations.append(correlation)
         
         return sum(correlations) / len(correlations) if correlations else 0
-
     def get_sector_pairs(self, symbol):
         sectors = {
             'DEFI': ['UNI', 'AAVE', 'CAKE', 'COMP', 'MKR'],
@@ -923,7 +881,6 @@ class MarketScanner(BaseScanner):
             if any(token in symbol for token in tokens):
                 return [f"{token}/USDT" for token in tokens]
         return []
-
     def assess_correlation_impact(self, btc_corr, sector_corr):
         impact_score = (btc_corr * 0.6) + (sector_corr * 0.4)
         
@@ -944,7 +901,6 @@ class MarketScanner(BaseScanner):
         }
         
         return sum(1 for metric in trend_metrics.values() if metric) / len(trend_metrics)
-
     def calculate_trend_duration(self, df):
         ema20 = talib.EMA(df['close'], timeperiod=20)
         trend_direction = 'bullish' if ema20.iloc[-1] > ema20.iloc[-2] else 'bearish'
@@ -962,7 +918,6 @@ class MarketScanner(BaseScanner):
             'duration': duration,
             'strength': 'strong' if duration > 20 else 'moderate' if duration > 10 else 'weak'
         }
-
     def classify_volatility(self, volatility):
         if volatility > 0.05:
             return 'high'
@@ -970,7 +925,6 @@ class MarketScanner(BaseScanner):
             return 'medium'
         else:
             return 'low'
-
     def analyze_volatility_trend(self, atr):
         current_atr = atr.iloc[-1]
         atr_sma = atr.rolling(window=20).mean().iloc[-1]
@@ -990,7 +944,6 @@ class MarketScanner(BaseScanner):
             'spread_score': self.score_spread_metrics(spread_analysis),
             'depth_score': self.score_depth_metrics(depth_analysis)
         }
-
     def analyze_spread_distribution(self, df):
         spreads = df['high'] - df['low']
         avg_spread = spreads.mean()
@@ -1001,7 +954,6 @@ class MarketScanner(BaseScanner):
             'spread_volatility': spread_volatility,
             'spread_trend': self.calculate_spread_trend(spreads)
         }
-
     def analyze_market_depth(self):
         order_book = self.binance.fetch_order_book(self.symbol)
         
@@ -1010,7 +962,6 @@ class MarketScanner(BaseScanner):
             'ask_depth': self.calculate_depth_metrics(order_book['asks']),
             'depth_ratio': self.calculate_depth_ratio(order_book)
         }
-
     def calculate_depth_metrics(self, orders):
         total_volume = sum(order[1] for order in orders[:10])
         price_levels = len(set(order[0] for order in orders[:10]))
@@ -1020,7 +971,6 @@ class MarketScanner(BaseScanner):
             'price_levels': price_levels,
             'average_size': total_volume / price_levels if price_levels > 0 else 0
         }
-
     def calculate_depth_ratio(self, order_book):
         bid_volume = sum(bid[1] for bid in order_book['bids'][:10])
         ask_volume = sum(ask[1] for ask in order_book['asks'][:10])
@@ -1049,7 +999,6 @@ class MarketScanner(BaseScanner):
             score += 30
         
         return score / 100
-
     def score_spread_metrics(self, spread_analysis):
         score = 0
         
@@ -1074,7 +1023,6 @@ class MarketScanner(BaseScanner):
             score += 15
         
         return score / 100
-
     def score_depth_metrics(self, depth_analysis):
         score = 0
         
@@ -1132,7 +1080,6 @@ class MarketScanner(BaseScanner):
             'trend_state': self.get_trend_state(trend_score),
             'trend_metrics': trend_data
         }
-
     def get_trend_state(self, trend_score):
         if trend_score >= 80:
             return 'strong_uptrend'
@@ -1144,7 +1091,6 @@ class MarketScanner(BaseScanner):
             return 'moderate_downtrend'
         else:
             return 'strong_downtrend'
-
     def analyze_trend_momentum(self, df):
         rsi = talib.RSI(df['close'])
         macd, signal, _ = talib.MACD(df['close'])
@@ -1164,7 +1110,6 @@ class MarketScanner(BaseScanner):
             return {'state': 'oversold', 'strength': (30 - rsi_value) / 30}
         else:
             return {'state': 'neutral', 'strength': abs(50 - rsi_value) / 20}
-
     def classify_macd_momentum(self, macd_value, signal_value):
         momentum = macd_value - signal_value
         return {
@@ -1172,7 +1117,6 @@ class MarketScanner(BaseScanner):
             'strength': abs(momentum),
             'divergence': self.check_macd_divergence(macd_value, signal_value)
         }
-
     def classify_adx_strength(self, adx_value):
         if adx_value > 40:
             return {'strength': 'very_strong', 'value': adx_value}
@@ -1182,7 +1126,6 @@ class MarketScanner(BaseScanner):
             return {'strength': 'moderate', 'value': adx_value}
         else:
             return {'strength': 'weak', 'value': adx_value}
-
     def calculate_momentum_score(self, momentum_data):
         score = 0
         
@@ -1237,7 +1180,6 @@ class MarketScanner(BaseScanner):
                 'confidence': 'high',
                 'suggested_action': 'exit_positions'
             }
-
     def check_macd_divergence(self, macd_values, signal_values):
         divergence_data = {
             'type': None,
@@ -1271,7 +1213,6 @@ class MarketScanner(BaseScanner):
             macd_trend = macd_lows[-1] > macd_lows[-2]
             return price_trend and macd_trend
         return False
-
     def detect_hidden_bullish_divergence(self, macd_values, signal_values):
         price_lows = self.find_price_lows()
         macd_lows = self.find_indicator_lows(macd_values)
@@ -1281,7 +1222,6 @@ class MarketScanner(BaseScanner):
             macd_trend = macd_lows[-1] < macd_lows[-2]
             return price_trend and macd_trend
         return False
-
     def calculate_divergence_strength(self, macd_values, signal_values):
         recent_macd = macd_values[-5:]
         recent_signal = signal_values[-5:]
@@ -1290,7 +1230,6 @@ class MarketScanner(BaseScanner):
         strength = abs(histogram.mean()) / recent_macd.std()
         
         return min(strength, 1.0)
-
     def count_divergence_confirmations(self, macd_values, signal_values):
         confirmations = 0
         lookback = 5
@@ -1314,7 +1253,6 @@ class MarketScanner(BaseScanner):
                 })
         
         return sorted(price_lows, key=lambda x: x['index'])
-
     def find_indicator_lows(self, indicator_values):
         window_size = 5
         indicator_lows = []
@@ -1328,7 +1266,6 @@ class MarketScanner(BaseScanner):
                 })
         
         return sorted(indicator_lows, key=lambda x: x['index'])
-
     def is_local_minimum(self, series, index, window):
         left_window = series[index - window:index]
         right_window = series[index + 1:index + window + 1]
@@ -1336,14 +1273,12 @@ class MarketScanner(BaseScanner):
         
         return all(current_value <= value for value in left_window) and \
             all(current_value <= value for value in right_window)
-
     def calculate_swing_strength(self, df, index):
         window_size = 5
         current_low = df['low'].iloc[index]
         surrounding_highs = max(df['high'].iloc[index - window_size:index + window_size])
         
         return (surrounding_highs - current_low) / current_low
-
     def calculate_indicator_strength(self, indicator_values, index):
         window_size = 5
         current_value = indicator_values[index]
@@ -1358,7 +1293,6 @@ class MarketScanner(BaseScanner):
             'patterns': self.detect_swing_patterns(swings)
         }
         return self.calculate_swing_metrics(patterns)
-
     def identify_swing_points(self, df):
         swing_points = {
             'highs': [],
@@ -1380,19 +1314,16 @@ class MarketScanner(BaseScanner):
                 })
         
         return swing_points
-
     def is_swing_high(self, df, index):
         return (df['high'].iloc[index] > df['high'].iloc[index - 1] and 
                 df['high'].iloc[index] > df['high'].iloc[index - 2] and
                 df['high'].iloc[index] > df['high'].iloc[index + 1] and 
                 df['high'].iloc[index] > df['high'].iloc[index + 2])
-
     def is_swing_low(self, df, index):
         return (df['low'].iloc[index] < df['low'].iloc[index - 1] and 
                 df['low'].iloc[index] < df['low'].iloc[index - 2] and
                 df['low'].iloc[index] < df['low'].iloc[index + 1] and 
                 df['low'].iloc[index] < df['low'].iloc[index + 2])
-
     def validate_swing_points(self, swing_points, threshold=0.01):
         validated_points = []
         
@@ -1413,7 +1344,6 @@ class MarketScanner(BaseScanner):
         }
         
         return self.validate_patterns(patterns)
-
     def find_double_bottoms(self, lows):
         double_bottoms = []
         
@@ -1427,7 +1357,6 @@ class MarketScanner(BaseScanner):
                     })
         
         return double_bottoms
-
     def find_double_tops(self, highs):
         double_tops = []
         
@@ -1441,7 +1370,6 @@ class MarketScanner(BaseScanner):
                     })
         
         return double_tops
-
     def calculate_pattern_strength(self, point1, point2):
         price_similarity = 1 - abs(point1['price'] - point2['price']) / point1['price']
         volume_confirmation = point2['volume'] > point1['volume']
@@ -1464,7 +1392,6 @@ class MarketScanner(BaseScanner):
             'pattern_count': sum(len(patterns) for patterns in validated_patterns.values()),
             'strongest_pattern': self.find_strongest_pattern(validated_patterns)
         }
-
     def check_higher_lows(self, lows):
         if len(lows) < 2:
             return []
@@ -1482,7 +1409,6 @@ class MarketScanner(BaseScanner):
                 current_low = lows[i]
         
         return higher_lows
-
     def check_lower_highs(self, highs):
         if len(highs) < 2:
             return []
@@ -1500,7 +1426,6 @@ class MarketScanner(BaseScanner):
                 current_high = highs[i]
         
         return lower_highs
-
     def find_strongest_pattern(self, validated_patterns):
         strongest = {
             'type': None,
@@ -1518,7 +1443,6 @@ class MarketScanner(BaseScanner):
                     }
         
         return strongest
-
     def calculate_trend_strength(self, start_point, end_point):
         price_change = abs(end_point['price'] - start_point['price']) / start_point['price']
         time_duration = end_point['index'] - start_point['index']
@@ -1531,7 +1455,6 @@ class MarketScanner(BaseScanner):
         )
         
         return min(strength_score, 1.0)
-
     def confirm_pattern_breakout(self, pattern, current_data):
         confirmation = {
             'confirmed': False,
@@ -1546,7 +1469,6 @@ class MarketScanner(BaseScanner):
         
         confirmation['strength'] = self.calculate_breakout_strength(confirmation)
         return confirmation
-
     def calculate_breakout_strength(self, confirmation_data):
         if not confirmation_data['confirmed']:
             return 0
@@ -1563,7 +1485,6 @@ class MarketScanner(BaseScanner):
         )
         
         return total_strength
-
     def validate_breakout_volume(self, current_volume, pattern_volume):
         return {
             'valid': current_volume > pattern_volume * 1.5,
@@ -1594,7 +1515,6 @@ class MarketScanner(BaseScanner):
                 confirmation['confirmation_factors'].append('technical_confirmation')
         
         return confirmation
-
     def confirm_double_top_breakout(self, pattern, current_data):
         neckline_price = min(pattern['first_high']['price'], pattern['second_high']['price'])
         current_price = current_data['close'].iloc[-1]
@@ -1633,7 +1553,6 @@ class MarketScanner(BaseScanner):
                 'volume': volume_confirm
             }
         }
-
     def confirm_rsi_breakout(self, current_data):
         rsi = talib.RSI(current_data['close'])
         current_rsi = rsi.iloc[-1]
@@ -1644,7 +1563,6 @@ class MarketScanner(BaseScanner):
             'value': current_rsi,
             'trend': 'bullish' if current_rsi > prev_rsi else 'bearish'
         }
-
     def confirm_macd_breakout(self, current_data):
         macd, signal, hist = talib.MACD(current_data['close'])
         
@@ -1653,7 +1571,6 @@ class MarketScanner(BaseScanner):
             'histogram': hist.iloc[-1],
             'trend': 'bullish' if hist.iloc[-1] > 0 else 'bearish'
         }
-
     def confirm_volume_breakout(self, current_data):
         volume_sma = current_data['volume'].rolling(window=20).mean()
         current_volume = current_data['volume'].iloc[-1]
@@ -1672,7 +1589,6 @@ class MarketScanner(BaseScanner):
         }
         
         return self.validate_target_levels(targets)
-
     def project_price_targets(self, pattern, breakout_price):
         pattern_height = self.calculate_pattern_height(pattern)
         
@@ -1681,7 +1597,6 @@ class MarketScanner(BaseScanner):
             'target_2': breakout_price + pattern_height,          # Full pattern height
             'target_3': breakout_price + pattern_height * 1.618   # Extended target
         }
-
     def calculate_stop_levels(self, pattern, breakout_price):
         pattern_height = self.calculate_pattern_height(pattern)
         atr = self.calculate_atr(pattern)
@@ -1691,7 +1606,6 @@ class MarketScanner(BaseScanner):
             'pattern_stop': pattern['lowest_point'] - (pattern_height * 0.1),
             'swing_stop': self.find_nearest_swing_low(pattern)
         }
-
     def calculate_risk_reward_ratios(self, pattern, breakout_price):
         targets = self.project_price_targets(pattern, breakout_price)
         stops = self.calculate_stop_levels(pattern, breakout_price)
@@ -1718,19 +1632,16 @@ class MarketScanner(BaseScanner):
             'adjusted_targets': validated_targets,
             'key_levels': key_levels
         }
-
     def calculate_atr(self, pattern):
         df = self.current_data
         atr = talib.ATR(df['high'], df['low'], df['close'], timeperiod=14)
         return atr.iloc[-1]
-
     def calculate_pattern_height(self, pattern):
         if 'first_high' in pattern:  # Double Top
             return pattern['first_high']['price'] - pattern['neckline']
         elif 'first_low' in pattern:  # Double Bottom
             return pattern['neckline'] - pattern['first_low']['price']
         return 0
-
     def find_nearest_key_level(self, price, key_levels):
         if not key_levels:
             return None
@@ -1751,7 +1662,6 @@ class MarketScanner(BaseScanner):
         }
         
         return adjusted_target
-
     def calculate_position_size(self, entry_price, stop_loss, risk_percentage=1.0):
         account_balance = self.get_account_balance()
         risk_amount = account_balance * (risk_percentage / 100)
@@ -1760,7 +1670,6 @@ class MarketScanner(BaseScanner):
         position_size = risk_amount / price_difference
         
         return self.validate_position_size(position_size, entry_price)
-
     def validate_position_size(self, position_size, entry_price):
         market_limits = self.get_market_limits()
         
@@ -1777,7 +1686,6 @@ class MarketScanner(BaseScanner):
             'value': position_size * entry_price,
             'limits_applied': position_size != position_size
         }
-
     def get_account_balance(self):
         try:
             balance = self.binance.fetch_balance()
@@ -1785,7 +1693,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error fetching account balance: {e}")
             return 0.0
-
     def get_market_limits(self):
         try:
             market_info = self.binance.fetch_market(self.symbol)
@@ -1803,7 +1710,6 @@ class MarketScanner(BaseScanner):
                 'price_precision': 8,
                 'size_precision': 8
             }
-
     def calculate_order_quantities(self, entry_price, position_size):
         market_limits = self.get_market_limits()
         
@@ -1815,7 +1721,6 @@ class MarketScanner(BaseScanner):
             'quote_quantity': self.round_to_precision(quote_quantity, market_limits['price_precision']),
             'entry_price': self.round_to_precision(entry_price, market_limits['price_precision'])
         }
-
     def round_to_precision(self, value, precision):
         return round(value, precision)
     def execute_pattern_trade(self, pattern, entry_price, position_size):
@@ -1829,7 +1734,6 @@ class MarketScanner(BaseScanner):
         }
         
         return self.place_order(order_data)
-
     def determine_trade_side(self, pattern):
         pattern_types = {
             'double_bottom': 'buy',
@@ -1838,14 +1742,12 @@ class MarketScanner(BaseScanner):
             'lower_highs': 'sell'
         }
         return pattern_types.get(pattern['type'], 'buy')
-
     def get_order_params(self, pattern):
         return {
             'timeInForce': 'GTC',
             'postOnly': True,
             'reduceOnly': False
         }
-
     def place_order(self, order_data):
         try:
             order = self.binance.create_order(**order_data)
@@ -1854,7 +1756,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error placing order: {e}")
             return None
-
     def track_order(self, order):
         order_tracker = {
             'order_id': order['id'],
@@ -1869,7 +1770,6 @@ class MarketScanner(BaseScanner):
         
         self.active_orders[order['id']] = order_tracker
         return order_tracker
-
     def monitor_active_orders(self):
         for order_id, tracker in self.active_orders.items():
             try:
@@ -1883,7 +1783,6 @@ class MarketScanner(BaseScanner):
                     
             except Exception as e:
                 self.logger.error(f"Error monitoring order {order_id}: {e}")
-
     def update_order_tracker(self, tracker, order_status):
         tracker.update({
             'status': order_status['status'],
@@ -1913,11 +1812,9 @@ class MarketScanner(BaseScanner):
         
         # Remove from active orders
         del self.active_orders[tracker['order_id']]
-
     def handle_canceled_order(self, tracker):
         self.logger.info(f"Order canceled: {tracker['order_id']}")
         del self.active_orders[tracker['order_id']]
-
     def place_trailing_stop(self, symbol, side, size, stop_price):
         try:
             stop_side = 'sell' if side == 'buy' else 'buy'
@@ -1953,13 +1850,11 @@ class MarketScanner(BaseScanner):
             
             # Check risk limits
             self.check_position_risk(symbol, position)
-
     def calculate_pnl(self, side, entry_price, current_price, size):
         if side == 'buy':
             return (current_price - entry_price) * size
         else:
             return (entry_price - current_price) * size
-
     def update_trailing_stop(self, position, current_price):
         if position['side'] == 'buy':
             new_stop = current_price * 0.99  # 1% trailing stop
@@ -1969,7 +1864,6 @@ class MarketScanner(BaseScanner):
             new_stop = current_price * 1.01
             if new_stop < position['trailing_stop']['stopPrice']:
                 self.modify_trailing_stop(position['trailing_stop'], new_stop)
-
     def check_position_risk(self, symbol, position):
         risk_metrics = self.calculate_risk_metrics(position)
         
@@ -1986,21 +1880,17 @@ class MarketScanner(BaseScanner):
             'volatility': self.calculate_position_volatility(position),
             'exposure': self.calculate_exposure(position)
         }
-
     def calculate_drawdown(self, position, current_price):
         peak_price = max(position['entry_price'], current_price)
         return (peak_price - current_price) / peak_price * 100
-
     def calculate_risk_ratio(self, position):
         account_value = self.get_account_balance()
         position_value = position['size'] * position['entry_price']
         return position_value / account_value * 100
-
     def calculate_position_volatility(self, position):
         df = self.fetch_market_data(position['symbol'], '1h', limit=24)
         returns = df['close'].pct_change().dropna()
         return returns.std() * np.sqrt(24) * 100
-
     def calculate_exposure(self, position):
         total_exposure = sum(pos['size'] * pos['entry_price'] 
                             for pos in self.active_positions.values())
@@ -2024,7 +1914,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error reducing position: {e}")
             return None
-
     def close_position(self, symbol, position):
         try:
             order = self.binance.create_order(
@@ -2045,7 +1934,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error closing position: {e}")
             return None
-
     def record_trade_history(self, symbol, position, close_order):
         trade_record = {
             'symbol': symbol,
@@ -2076,21 +1964,17 @@ class MarketScanner(BaseScanner):
         }
         
         return self.generate_performance_report(performance_metrics)
-
     def count_winning_trades(self):
         return sum(1 for trade in self.trade_history if trade['pnl'] > 0)
-
     def calculate_profit_factor(self):
         winning_pnl = sum(trade['pnl'] for trade in self.trade_history if trade['pnl'] > 0)
         losing_pnl = abs(sum(trade['pnl'] for trade in self.trade_history if trade['pnl'] < 0))
         return winning_pnl / losing_pnl if losing_pnl > 0 else float('inf')
-
     def calculate_average_return(self):
         if not self.trade_history:
             return 0
         total_return = sum(trade['pnl'] for trade in self.trade_history)
         return total_return / len(self.trade_history)
-
     def calculate_sharpe_ratio(self):
         returns = [trade['pnl'] for trade in self.trade_history]
         if not returns:
@@ -2101,19 +1985,16 @@ class MarketScanner(BaseScanner):
         running_max = np.maximum.accumulate(equity_curve)
         drawdowns = (running_max - equity_curve) / running_max
         return np.max(drawdowns) * 100
-
     def calculate_win_rate(self):
         if not self.trade_history:
             return 0
         winning_trades = self.count_winning_trades()
         return (winning_trades / len(self.trade_history)) * 100
-
     def generate_equity_curve(self):
         equity = [1000]  # Starting capital
         for trade in self.trade_history:
             equity.append(equity[-1] + trade['pnl'])
         return np.array(equity)
-
     def generate_performance_report(self, metrics):
         report = {
             'summary': {
@@ -2150,7 +2031,6 @@ class MarketScanner(BaseScanner):
                 'risk_adjusted_return': self.calculate_risk_adjusted_return()
             }
         }
-
     def analyze_trade_distribution(self):
         return {
             'time_analysis': self.analyze_time_distribution(),
@@ -2158,7 +2038,6 @@ class MarketScanner(BaseScanner):
             'pattern_analysis': self.analyze_pattern_performance(),
             'market_conditions': self.analyze_market_conditions()
         }
-
     def generate_trading_recommendations(self):
         return {
             'position_sizing': self.recommend_position_sizing(),
@@ -2169,23 +2048,18 @@ class MarketScanner(BaseScanner):
     def calculate_average_trade_duration(self):
         durations = [trade['duration'] for trade in self.trade_history]
         return np.mean(durations) if durations else 0
-
     def get_largest_win(self):
         wins = [trade['pnl'] for trade in self.trade_history if trade['pnl'] > 0]
         return max(wins) if wins else 0
-
     def get_largest_loss(self):
         losses = [trade['pnl'] for trade in self.trade_history if trade['pnl'] < 0]
         return min(losses) if losses else 0
-
     def calculate_average_win(self):
         wins = [trade['pnl'] for trade in self.trade_history if trade['pnl'] > 0]
         return np.mean(wins) if wins else 0
-
     def calculate_average_loss(self):
         losses = [trade['pnl'] for trade in self.trade_history if trade['pnl'] < 0]
         return np.mean(losses) if losses else 0
-
     def calculate_risk_reward_ratio(self):
         avg_win = self.calculate_average_win()
         avg_loss = abs(self.calculate_average_loss())
@@ -2193,11 +2067,9 @@ class MarketScanner(BaseScanner):
     def calculate_daily_volatility(self):
         daily_returns = self.get_daily_returns()
         return np.std(daily_returns) * np.sqrt(252) if len(daily_returns) > 0 else 0
-
     def calculate_monthly_volatility(self):
         monthly_returns = self.get_monthly_returns()
         return np.std(monthly_returns) * np.sqrt(12) if len(monthly_returns) > 0 else 0
-
     def calculate_market_beta(self):
         market_returns = self.get_market_returns()
         strategy_returns = self.get_strategy_returns()
@@ -2207,28 +2079,23 @@ class MarketScanner(BaseScanner):
             market_variance = np.var(market_returns)
             return covariance / market_variance if market_variance != 0 else 0
         return 0
-
     def get_daily_returns(self):
         equity_curve = self.generate_equity_curve()
         return np.diff(equity_curve) / equity_curve[:-1]
-
     def get_monthly_returns(self):
         daily_returns = self.get_daily_returns()
         return np.array([np.sum(daily_returns[i:i+21]) for i in range(0, len(daily_returns), 21)])
-
     def calculate_value_at_risk(self, confidence_level=0.95):
         returns = self.get_daily_returns()
         if len(returns) > 0:
             return np.percentile(returns, (1 - confidence_level) * 100)
         return 0
-
     def calculate_expected_shortfall(self, confidence_level=0.95):
         returns = self.get_daily_returns()
         var = self.calculate_value_at_risk(confidence_level)
         if len(returns) > 0:
             return np.mean(returns[returns <= var])
         return 0
-
     def calculate_risk_adjusted_return(self):
         returns = self.get_daily_returns()
         if len(returns) > 0:
@@ -2236,7 +2103,6 @@ class MarketScanner(BaseScanner):
             volatility = np.std(returns)
             return (avg_return / volatility) * np.sqrt(252) if volatility != 0 else 0
         return 0
-
     def analyze_drawdown_periods(self):
         equity_curve = self.generate_equity_curve()
         peak = equity_curve[0]
@@ -2266,7 +2132,6 @@ class MarketScanner(BaseScanner):
             'monthly_distribution': trades.groupby(trades['timestamp'].dt.month)['pnl'].mean().to_dict(),
             'best_trading_hours': self.identify_best_trading_hours(trades)
         }
-
     def analyze_position_sizes(self):
         trades = pd.DataFrame(self.trade_history)
         return {
@@ -2275,7 +2140,6 @@ class MarketScanner(BaseScanner):
             'size_performance_correlation': trades['size'].corr(trades['pnl']),
             'risk_adjusted_sizes': self.calculate_risk_adjusted_sizes(trades)
         }
-
     def analyze_pattern_performance(self):
         trades = pd.DataFrame(self.trade_history)
         return {
@@ -2284,7 +2148,6 @@ class MarketScanner(BaseScanner):
             'pattern_risk_metrics': self.calculate_pattern_risk_metrics(trades),
             'best_performing_patterns': self.identify_best_patterns(trades)
         }
-
     def analyze_market_conditions(self):
         trades = pd.DataFrame(self.trade_history)
         return {
@@ -2293,7 +2156,6 @@ class MarketScanner(BaseScanner):
             'volume_performance': self.analyze_volume_impact(trades),
             'optimal_conditions': self.identify_optimal_conditions(trades)
         }
-
     def recommend_position_sizing(self):
         analysis = self.analyze_position_sizes()
         return {
@@ -2306,7 +2168,6 @@ class MarketScanner(BaseScanner):
             'scaling_factors': self.calculate_position_scaling_factors(),
             'risk_based_adjustments': self.calculate_risk_based_size_adjustments()
         }
-
     def recommend_risk_parameters(self):
         return {
             'stop_loss_levels': {
@@ -2323,7 +2184,6 @@ class MarketScanner(BaseScanner):
                 'max_drawdown_limit': self.calculate_max_drawdown_limit()
             }
         }
-
     def recommend_pattern_preferences(self):
         pattern_analysis = self.analyze_pattern_performance()
         return {
@@ -2333,7 +2193,6 @@ class MarketScanner(BaseScanner):
             'pattern_combinations': self.identify_synergistic_patterns(),
             'market_specific_patterns': self.analyze_market_specific_patterns()
         }
-
     def recommend_timing_optimization(self):
         time_analysis = self.analyze_time_distribution()
         return {
@@ -2346,9 +2205,6 @@ class MarketScanner(BaseScanner):
             'timing_adjustments': self.calculate_timing_adjustments(),
             'volatility_based_timing': self.analyze_volatility_based_timing()
         }
-
-
-
     def calculate_risk_reward(self, target, neckline, head):
         # Calculate potential reward
         reward = neckline - target
@@ -2357,9 +2213,6 @@ class MarketScanner(BaseScanner):
         risk = head - neckline
         
         return reward / risk if risk != 0 else 0
-
-
-
     def validate_hs_pattern(self, pattern_data):
         if not all([pattern_data['left_shoulder'], pattern_data['head'], 
                     pattern_data['right_shoulder'], pattern_data['neckline']]):
@@ -2393,7 +2246,6 @@ class MarketScanner(BaseScanner):
             return False
         
         return True
-
     def calculate_pattern_probability(self, pattern_data):
         score = 0
         max_score = 100
@@ -2417,9 +2269,6 @@ class MarketScanner(BaseScanner):
         score += 20 * time_symmetry
         
         return score / max_score
-
-
-
     def calculate_volume_confirmation(self, pattern_data):
         # Volume should be highest at left shoulder and head
         volumes = [
@@ -2434,7 +2283,6 @@ class MarketScanner(BaseScanner):
             return 0.7
         else:
             return 0.3
-
     def calculate_neckline_quality(self, neckline):
         # Assess neckline slope and consistency
         slope = abs(neckline['slope'])
@@ -2447,7 +2295,6 @@ class MarketScanner(BaseScanner):
             return 0.5
         else:  # Steeply sloped
             return 0.3
-
     def calculate_time_symmetry(self, pattern_data):
         ls_idx = pattern_data['left_shoulder']['index']
         h_idx = pattern_data['head']['index']
@@ -2458,7 +2305,6 @@ class MarketScanner(BaseScanner):
         
         symmetry = 1 - (abs(left_distance - right_distance) / left_distance)
         return max(0, min(1, symmetry))
-
     def validate_signals_with_trailing(self, signals, market):
         validated = []
         current_price = float(self.binance.fetch_ticker(market)['last'])
@@ -2488,7 +2334,6 @@ class MarketScanner(BaseScanner):
                     )
                     filtered.append(signal)
         return filtered
-
     def check_volume_threshold(self, market):
         try:
             ticker = self.binance.fetch_ticker(market)
@@ -2497,7 +2342,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Volume check error for {market}: {e}")
             return False
-
     def update_trailing_stops(self, market, current_price):
         if market in self.trailing_data['active_signals']:
             if market not in self.trailing_data['highest_price']:
@@ -2506,7 +2350,6 @@ class MarketScanner(BaseScanner):
             elif current_price > self.trailing_data['highest_price'][market]:
                 self.trailing_data['highest_price'][market] = current_price
                 self.trailing_data['stop_levels'][market] = current_price * 0.99
-
     def analyze_market_correlations(self, markets, timeframe='1h'):
         correlation_matrix = {}
         market_data = {}
@@ -2524,7 +2367,6 @@ class MarketScanner(BaseScanner):
                     correlation_matrix[market1][market2] = corr
                     
         return correlation_matrix
-
     def multi_timeframe_scan(self, market):
         timeframes = ['5m', '15m', '1h', '4h']
         mtf_signals = {}
@@ -2536,7 +2378,6 @@ class MarketScanner(BaseScanner):
                 mtf_signals[tf] = signals
                 
         return self.analyze_mtf_signals(mtf_signals)
-
     def analyze_mtf_signals(self, mtf_signals):
         signal_strength = 0
         confirmed_signals = []
@@ -2557,7 +2398,6 @@ class MarketScanner(BaseScanner):
             'confirmed_signals': confirmed_signals,
             'timeframe_data': mtf_signals
         }
-
     def scan_correlated_markets(self, base_market):
         correlations = self.analyze_market_correlations([base_market] + self.selected_markets)
         correlated_markets = [
@@ -2572,9 +2412,6 @@ class MarketScanner(BaseScanner):
                 correlated_signals[market] = mtf_analysis
 
         return correlated_signals
-
-
-
     def analyze_volume_profile(self, df):
         if df is None or df.empty:
             return None
@@ -2632,14 +2469,12 @@ class MarketScanner(BaseScanner):
             }
         
         return self.combine_adx_timeframes(adx_signals)
-
     def confirm_trend_strength(self, df):
         return {
             'strong_trend': df['adx'].iloc[-1] > 25,
             'trend_direction': 'bullish' if df['plus_di'].iloc[-1] > df['minus_di'].iloc[-1] else 'bearish',
             'trend_momentum': df['adx'].diff().iloc[-1]
         }
-
     def generate_adx_entry_signals(self, df):
         signals = []
         
@@ -2654,7 +2489,6 @@ class MarketScanner(BaseScanner):
             })
         
         return signals
-
     def generate_adx_exit_signals(self, df):
         signals = []
         
@@ -2668,7 +2502,6 @@ class MarketScanner(BaseScanner):
             })
         
         return signals
-
     def combine_adx_timeframes(self, adx_signals):
         combined_score = 0
         weights = {'15m': 0.3, '1h': 0.5, '4h': 0.7}
@@ -2682,14 +2515,12 @@ class MarketScanner(BaseScanner):
             'signals': adx_signals,
             'recommendation': 'strong_buy' if combined_score > 1.2 else 'neutral'
         }
-
     def analyze_market_structure(self, df):
         df['swing_high'] = df['high'].rolling(window=5, center=True).max()
         df['swing_low'] = df['low'].rolling(window=5, center=True).min()
         df['higher_highs'] = df['swing_high'] > df['swing_high'].shift(1)
         df['higher_lows'] = df['swing_low'] > df['swing_low'].shift(1)
         return df
-
     def detect_market_phase(self, df):
         adx = talib.ADX(df['high'], df['low'], df['close'])
         volatility = df['close'].pct_change().std() * np.sqrt(252)
@@ -2698,9 +2529,6 @@ class MarketScanner(BaseScanner):
             return 'Trending' if volatility > 0.2 else 'Low Volatility Trend'
         else:
             return 'Ranging' if volatility > 0.2 else 'Accumulation'
-
-
-
     def detect_htf_support_wick(self, market):
         # Get higher timeframe supports
         htf_data = {
@@ -2778,10 +2606,6 @@ class MarketScanner(BaseScanner):
                         }
         
         return None
-
-
-
-
     def analyze_vsa_signals(self, df):
         vsa_signals = []
         
@@ -2847,8 +2671,6 @@ class MarketScanner(BaseScanner):
                 vsa_score += 0.5
                 
         return vsa_score
-
-    # Add new support analysis methods here
     def define_strong_support(self, df, market):
         support_analysis = {
             'price_action_supports': self.detect_price_action_supports(df),
@@ -2857,7 +2679,6 @@ class MarketScanner(BaseScanner):
             'order_book_supports': self.verify_support_with_order_book(market)
         }
         return self.synthesize_support_strength(support_analysis)
-
     def detect_price_action_supports(self, df):
         support_levels = []
         for window in [20, 50, 100]:  # Multiple timeframe windows
@@ -2873,14 +2694,12 @@ class MarketScanner(BaseScanner):
                     'timeframe_weight': window/20
                 })
         return support_levels
-
     def count_support_bounces(self, df, support_price):
         return sum(
             1 for i in range(len(df)) 
             if abs(df['low'].iloc[i] - support_price) / support_price < 0.02 and
             df['close'].iloc[i] > df['open'].iloc[i]
         )
-
     def confirm_multi_timeframe_supports(self, market):
         timeframes = ['1h', '4h', '1d', '1w']
         support_strength = 0
@@ -2892,7 +2711,6 @@ class MarketScanner(BaseScanner):
                 support_strength += len(supports) * (timeframes.index(tf) + 1)
         
         return support_strength
-
     def verify_support_with_order_book(self, market):
         order_book = self.binance.fetch_order_book(market)
         support_zones = {}
@@ -2906,7 +2724,6 @@ class MarketScanner(BaseScanner):
             'support_zones': support_zones,
             'total_bid_volume': sum(support_zones.values())
         }
-
     def synthesize_support_strength(self, support_analysis):
         total_strength = (
             len(support_analysis['price_action_supports']) * 0.3 +
@@ -2922,7 +2739,6 @@ class MarketScanner(BaseScanner):
             'score': total_strength,
             'details': support_analysis
         }
-
     def detect_bull_trap(self, df):
         try:
             # Check for false breakout above resistance
@@ -2933,7 +2749,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error detecting bull trap: {e}")
             return False
-
     def detect_bear_trap(self, df):
         try:
             # Check for false breakout below support
@@ -2944,11 +2759,9 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error detecting bear trap: {e}")
             return False
-
     def detect_trend_strength(self, df):
         df['adx'] = talib.ADX(df['high'], df['low'], df['close'], timeperiod=14)
         return df['adx'].iloc[-1]
-
     def get_technical_sentiment(self, df):
         if df is None or df.empty:
             return None
@@ -2965,7 +2778,6 @@ class MarketScanner(BaseScanner):
             'macd_sentiment': 'bullish' if latest['macd'] > latest['macd_signal'] else 'bearish',
             'stoch_sentiment': 'oversold' if latest['slowk'] < 20 else 'overbought' if latest['slowk'] > 80 else 'neutral'
         }
-
     def calculate_sentiment_score(self, sentiment_data):
         score = 0
         weights = {
@@ -3008,7 +2820,6 @@ class MarketScanner(BaseScanner):
                 filtered_signals.append(signal)
 
         return filtered_signals
-
     def fetch_market_data(self, market, timeframe, limit=100):
         if market.startswith('USDT/'):
             return None
@@ -3065,7 +2876,6 @@ class MarketScanner(BaseScanner):
                         
         except Exception as e:
             self.logger.error(f"Error analyzing market {market}: {e}")
-
     def _analyze_volume_data(self, df):
         """Analyze volume patterns efficiently"""
         return {
@@ -3073,7 +2883,6 @@ class MarketScanner(BaseScanner):
             'volume_trend': 'increasing' if df['volume'].is_monotonic_increasing else 'decreasing',
             'volume_ratio': df['volume'].iloc[-1] / df['volume'].rolling(20).mean().iloc[-1]
         }
-
     def _calculate_base_sentiment(self, df):
         """Calculate base sentiment metrics"""
         return {
@@ -3081,7 +2890,6 @@ class MarketScanner(BaseScanner):
             'volume_impact': 'high' if df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] else 'low',
             'momentum': df['close'].pct_change().iloc[-1]
         }
-
     def _generate_market_analysis(self, market_data):
         """Generate final market analysis"""
         if not market_data:
@@ -3150,7 +2958,6 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Error generating signals: {e}")
             return []
-
     def process_signals(self, market, timeframe, signals):
         for signal in signals:
             try:
@@ -3261,7 +3068,6 @@ class MarketScanner(BaseScanner):
         adjusted_position = base_position * (1 - correlation_factor) * (1 - volatility)
         
         return min(adjusted_position, account_risk['max_position'])
-
     def portfolio_correlation_manager(self):
         portfolio = self.get_active_positions()
         correlation_matrix = self.market_correlation_analysis()
@@ -3275,10 +3081,6 @@ class MarketScanner(BaseScanner):
                 'max_allowed': self.calculate_max_exposure(market)
             }
         return risk_adjustments
-
-
-
-
     def calculate_position_size(self, signal, risk_percentage=1.0):
         account_balance = float(self.binance.fetch_balance()['total']['USDT'])
         risk_amount = account_balance * (risk_percentage / 100)
@@ -3318,7 +3120,6 @@ class MarketScanner(BaseScanner):
             'value_areas': value_areas,
             'distribution_type': self.classify_distribution(volume_profile)
         }
-
     def institutional_order_detection(self, market):
         order_flow = self.analyze_order_flow(market)
         large_orders = self.detect_large_orders(market)
@@ -3330,7 +3131,6 @@ class MarketScanner(BaseScanner):
             'order_flow_imbalance': order_flow['depth_imbalance'],
             'institutional_levels': self.find_institutional_levels(market)
         }
-
     def detect_session_momentum(self, market, timeframe):
         df = self.fetch_market_data(market, timeframe)
         session_data = {
@@ -3348,7 +3148,6 @@ class MarketScanner(BaseScanner):
             }
         
         return momentum_scores
-
     def integrate_analysis_components(self, market, timeframe):
         # Collect all analysis data
         order_flow = self.analyze_order_flow(market)
@@ -3368,7 +3167,6 @@ class MarketScanner(BaseScanner):
             })
         
         return signals
-
     def process_integrated_signals(self, market, timeframe):
         signals = self.integrate_analysis_components(market, timeframe)
         
@@ -3384,8 +3182,6 @@ class MarketScanner(BaseScanner):
             
             # Update dashboard
             self.update_performance_dashboard(signal, backtest_results)
-
-
     def calculate_var(self, confidence_level=0.95):
         trades = self.sql_operations('fetch', self.db_signals, 'Signals')
         if not trades:
@@ -3393,15 +3189,10 @@ class MarketScanner(BaseScanner):
             
         returns = [trade.get('pnl', 0) for trade in trades]
         return np.percentile(returns, (1 - confidence_level) * 100)
-
     def calculate_exposure(self):
         active_positions = self.binance.fetch_positions()
         total_exposure = sum(abs(float(pos['notional'])) for pos in active_positions if pos['notional'])
         return total_exposure
-
-
-
-
     def store_signals_db(self, signals, market, timeframe):
         for signal in signals:
             self.sql_operations('insert', self.db_signals, 'Signals',
@@ -3414,7 +3205,6 @@ class MarketScanner(BaseScanner):
                 rsi=signal.get('rsi', 0.0),
                 timestamp=str(datetime.now())
             )
-
     def send_telegram_update(self, message):
         if self.tel_id and self.bot_token:
             try:
@@ -3432,7 +3222,6 @@ class MarketScanner(BaseScanner):
                     self.logger.error(f"Telegram API error: {response.text}")
             except Exception as e:
                 self.logger.error(f"Telegram error: {e}")
-
     def detect_chart_patterns(self, df):
         patterns = []
         
@@ -3448,14 +3237,12 @@ class MarketScanner(BaseScanner):
         df['resistance'] = df['high'].rolling(window=20).max()
         
         return patterns
-
     def calculate_atr(self, symbol, tf):
         df = self.data(symbol, tf, limit=14)
         if df.empty:
             return None
         atr = df['ATR'].iloc[-1]
         return atr
-
     def trend_filter(self, df, ma1, ma2, length):
         df['Trend'] = 'none'
         for i in range(length, len(df)):

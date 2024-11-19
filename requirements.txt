@@ -43,6 +43,8 @@ python -m pip install requests
 python -m pip install numpy
 
 
+pip install mplfinance
+
 
 
     def setup_gui(self):

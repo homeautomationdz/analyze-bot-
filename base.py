@@ -81,6 +81,23 @@ class BaseScanner(tk.Frame):
         }
 
        # Add to BaseScanner class
+    def setup_power_tools(self):
+        self.setup_signal_builder()
+        self.setup_risk_calculator()
+        self.setup_position_optimizer()
+        self.setup_correlation_tracker()
+
+    def setup_signal_builder(self):
+        self.signal_templates = {}
+        self.custom_signals = {}
+        self.load_signal_templates()
+
+    def setup_risk_calculator(self):
+        self.risk_params = {
+            'max_position_size': 0.02,
+            'max_portfolio_risk': 0.05,
+            'correlation_threshold': 0.7
+        }
     def setup_market_regime(self):
         self.market_regimes = {
             'trend_following': {

@@ -78,7 +78,16 @@ class MarketApp(tk.Toplevel):
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(1, weight=1)
-
+    def setup_power_features(self):
+        self.setup_blacklist_manager()
+        self.setup_signal_builder()
+        self.setup_risk_tools()
+        self.setup_market_analyzer()
+    
+    def setup_blacklist_manager(self):
+        self.blacklist_frame = ttk.LabelFrame(self.root, text="Blacklist Manager")
+        self.blacklist_frame.pack(fill='x', padx=5, pady=5)
+        self.create_blacklist_widgets()
     def submit_and_close(self):
         self.destroy()
 
