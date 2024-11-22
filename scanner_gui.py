@@ -230,6 +230,210 @@ class ScannerGUI(MarketScanner):
         self.status_label = tk.Label(self.master, text="Scanner Status: Stopped",
                                    font=('Arial', 10), fg='red')
         self.status_label.grid(row=3, column=0, columnspan=4)
+
+    def setup_advanced_filters(self):
+        self.filter_config = {
+            'volume_threshold': 100000,
+            'min_volatility': 0.02,
+            'min_pattern_quality': 0.7,
+            'correlation_threshold': 0.7
+        }
+    def setup_performance_dashboard(self):
+        self.dashboard_metrics = {
+            'trade_performance': {
+                'win_rate': self.calculate_win_rate(),
+                'profit_factor': self.calculate_profit_factor(),
+                'sharpe_ratio': self.calculate_sharpe_ratio()
+            },
+            'market_analysis': {
+                'regime': self.detect_market_regime(),
+                'volatility': self.calculate_volatility(),
+                'correlation': self.analyze_correlations()
+            },
+            'risk_metrics': {
+                'max_drawdown': self.calculate_drawdown(),
+                'value_at_risk': self.calculate_var(),
+                'position_exposure': self.calculate_exposure()
+            }
+        }
+
+    def integrate_gui_components(self):
+        # Create main dashboard frame
+        self.dashboard_frame = ttk.Frame(self.master)
+        self.dashboard_frame.grid(row=4, column=0, columnspan=12, sticky='nsew')
+        
+        # Add performance metrics display
+        self.metrics_display = self.create_metrics_display()
+        
+        # Add market regime indicator
+        self.regime_indicator = self.create_regime_indicator()
+        
+        # Add trade journal display
+        self.journal_display = self.create_journal_display()
+        
+        # Add risk metrics panel
+        self.risk_panel = self.create_risk_panel()
+        
+        # Update all displays
+        self.schedule_updates()
+    def create_metrics_display(self):
+        metrics_frame = ttk.LabelFrame(self.dashboard_frame, text="Performance Metrics")
+        metrics_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        
+        # Win Rate
+        self.win_rate_label = ttk.Label(metrics_frame, text="Win Rate: ")
+        self.win_rate_label.grid(row=0, column=0, padx=5, pady=2)
+        self.win_rate_value = ttk.Label(metrics_frame, text="0%")
+        self.win_rate_value.grid(row=0, column=1, padx=5, pady=2)
+        
+        # Profit Factor
+        self.profit_factor_label = ttk.Label(metrics_frame, text="Profit Factor: ")
+        self.profit_factor_label.grid(row=1, column=0, padx=5, pady=2)
+        self.profit_factor_value = ttk.Label(metrics_frame, text="0")
+        self.profit_factor_value.grid(row=1, column=1, padx=5, pady=2)
+        
+        return metrics_frame
+
+    def create_regime_indicator(self):
+        regime_frame = ttk.LabelFrame(self.dashboard_frame, text="Market Regime")
+        regime_frame.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
+        
+        self.regime_label = ttk.Label(regime_frame, text="Current Regime: ")
+        self.regime_label.grid(row=0, column=0, padx=5, pady=2)
+        self.regime_value = ttk.Label(regime_frame, text="Unknown")
+        self.regime_value.grid(row=0, column=1, padx=5, pady=2)
+        
+        return regime_frame
+
+    def create_journal_display(self):
+        journal_frame = ttk.LabelFrame(self.dashboard_frame, text="Trade Journal")
+        journal_frame.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        
+        # Create Treeview for trade history
+        columns = ('Time', 'Market', 'Type', 'Entry', 'Exit', 'PnL', 'Risk/Reward')
+        self.trade_tree = ttk.Treeview(journal_frame, columns=columns, show='headings')
+        
+        # Set column headings
+        for col in columns:
+            self.trade_tree.heading(col, text=col)
+            self.trade_tree.column(col, width=100)
+        
+        self.trade_tree.grid(row=0, column=0, sticky='nsew')
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(journal_frame, orient='vertical', command=self.trade_tree.yview)
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        self.trade_tree.configure(yscrollcommand=scrollbar.set)
+        
+        return journal_frame
+
+    def create_risk_panel(self):
+        risk_frame = ttk.LabelFrame(self.dashboard_frame, text="Risk Metrics")
+        risk_frame.grid(row=1, column=2, padx=5, pady=5, sticky='nsew')
+        
+        # Position Size
+        self.position_size_label = ttk.Label(risk_frame, text="Position Size: ")
+        self.position_size_label.grid(row=0, column=0, padx=5, pady=2)
+        self.position_size_value = ttk.Label(risk_frame, text="0")
+        self.position_size_value.grid(row=0, column=1, padx=5, pady=2)
+        
+        # Risk Level
+        self.risk_level_label = ttk.Label(risk_frame, text="Risk Level: ")
+        self.risk_level_label.grid(row=1, column=0, padx=5, pady=2)
+        self.risk_level_value = ttk.Label(risk_frame, text="Low")
+        self.risk_level_value.grid(row=1, column=1, padx=5, pady=2)
+        
+        return risk_frame
+
+    def update_dashboard(self):
+        metrics = self.dashboard_metrics['trade_performance']
+        self.win_rate_value.config(text=f"{metrics['win_rate']:.2f}%")
+        self.profit_factor_value.config(text=f"{metrics['profit_factor']:.2f}")
+        self.regime_value.config(text=self.dashboard_metrics['market_analysis']['regime'])
+
+    def update_journal(self):
+        # Clear existing entries
+        for item in self.trade_tree.get_children():
+            self.trade_tree.delete(item)
+        
+        # Add new entries
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        for trade in trades[-100:]:  # Show last 100 trades
+            self.trade_tree.insert('', 'end', values=(
+                trade['timestamp'],
+                trade['market'],
+                trade['signal_type'],
+                trade['price'],
+                trade.get('exit_price', ''),
+                trade.get('pnl', ''),
+                trade.get('risk_reward', '')
+            ))
+
+    def update_risk_metrics(self):
+        risk_metrics = self.dashboard_metrics['risk_metrics']
+        self.position_size_value.config(text=f"{risk_metrics['position_exposure']:.2f}")
+        self.risk_level_value.config(text=risk_metrics['value_at_risk'])
+    def create_visualization_components(self):
+        viz_frame = ttk.LabelFrame(self.dashboard_frame, text="Market Visualization")
+        viz_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
+        
+        # Market Heatmap
+        self.create_market_heatmap(viz_frame)
+        
+        # Performance Charts
+        self.create_performance_charts(viz_frame)
+        
+        return viz_frame
+
+    def create_market_heatmap(self, parent_frame):
+        heatmap_frame = ttk.Frame(parent_frame)
+        heatmap_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        
+        markets = self.selected_markets or self.change(self.choose_list.get())
+        performance_data = {market: self.calculate_market_performance(market) for market in markets}
+        
+        # Create grid of labels colored by performance
+        for i, (market, perf) in enumerate(performance_data.items()):
+            color = self.get_performance_color(perf)
+            label = tk.Label(heatmap_frame, text=f"{market}\n{perf:.2f}%",
+                            bg=color, width=15, height=2)
+            label.grid(row=i//5, column=i%5, padx=1, pady=1)
+
+    def create_performance_charts(self, parent_frame):
+        chart_frame = ttk.Frame(parent_frame)
+        chart_frame.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
+        
+        # Win Rate Chart
+        self.create_win_rate_chart(chart_frame)
+        
+        # PnL Chart
+        self.create_pnl_chart(chart_frame)
+
+    def get_performance_color(self, performance):
+        if performance > 5:
+            return '#90EE90'  # Light green
+        elif performance > 0:
+            return '#98FB98'  # Pale green
+        elif performance > -5:
+            return '#FFB6C1'  # Light red
+        else:
+            return '#CD5C5C'  # Indian red
+
+    def calculate_market_performance(self, market):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals', market=market)
+        if not trades:
+            return 0.0
+        
+        pnl_values = [trade.get('pnl', 0) for trade in trades]
+        return sum(pnl_values) / len(pnl_values) * 100
+
+    def schedule_updates(self):
+        if self.scanning:
+            self.update_dashboard()
+            self.update_journal()
+            self.update_risk_metrics()
+            self.master.after(5000, self.schedule_updates)  # Update every 5 seconds
+
     def start_scanning(self):
         if not self.scanning:
             # Initialize exchange connection
@@ -246,7 +450,6 @@ class ScannerGUI(MarketScanner):
             
             # Notify start
             self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
-
 
 
 
