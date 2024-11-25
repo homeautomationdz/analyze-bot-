@@ -29,7 +29,7 @@ class BaseScanner(tk.Frame):
         # Window configuration
         if self.master:
             self.master.title("Market Scanner")
-            self.master.configure(bg="#E6E6E6")
+            self.master.configure(bg="#000000")
         
         # System configuration
         self.tm = int(datetime.now().timestamp())
@@ -81,23 +81,6 @@ class BaseScanner(tk.Frame):
         }
 
        # Add to BaseScanner class
-    def setup_power_tools(self):
-        self.setup_signal_builder()
-        self.setup_risk_calculator()
-        self.setup_position_optimizer()
-        self.setup_correlation_tracker()
-
-    def setup_signal_builder(self):
-        self.signal_templates = {}
-        self.custom_signals = {}
-        self.load_signal_templates()
-
-    def setup_risk_calculator(self):
-        self.risk_params = {
-            'max_position_size': 0.02,
-            'max_portfolio_risk': 0.05,
-            'correlation_threshold': 0.7
-        }
     def setup_market_regime(self):
         self.market_regimes = {
             'trend_following': {
@@ -125,13 +108,7 @@ class BaseScanner(tk.Frame):
                 'forecast_horizon': 5
             }
         }
-    def initialize_ml_models(self):
-        self.ml_models = {
-            'pattern_recognition': self.setup_pattern_recognition_model(),
-            'trend_prediction': self.setup_trend_prediction_model(),
-            'sentiment_analysis': self.setup_sentiment_model()
-        }
-                
+            
     def setup_backtesting_engine(self):
         self.backtest_config = {
             'lookback_period': 500,
@@ -146,12 +123,6 @@ class BaseScanner(tk.Frame):
                 'enabled': True,
                 'parameters': ['stop_loss', 'take_profit', 'entry_confirmation']
             }
-        }
-    def initialize_advanced_backtesting(self):
-        self.backtest_engine = {
-            'multi_timeframe': self.setup_mtf_backtest(),
-            'monte_carlo': self.setup_monte_carlo(),
-            'optimization': self.setup_walk_forward()
         }
 
     def setup_trade_journal(self):
@@ -339,14 +310,7 @@ class BaseScanner(tk.Frame):
         df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
         df['atr'] = talib.ATR(df['high'], df['low'], df['close'], timeperiod=14)
         return df
-    def analyze_momentum(self, df):
-        momentum_data = {
-            'rsi_momentum': self.classify_rsi_momentum(df['rsi'].iloc[-1]),
-            'macd_momentum': self.classify_macd_momentum(df['macd'].iloc[-1], df['macd_signal'].iloc[-1]),
-            'trend_strength': self.classify_adx_strength(df['adx'].iloc[-1])
-        }
-        
-        return self.calculate_momentum_score(momentum_data)
+
     def process_market_signal(self, market, timeframe, signal_data):
         try:
             # Validate signal data
@@ -372,21 +336,6 @@ class BaseScanner(tk.Frame):
         except Exception as e:
             self.logger.error(f"Signal processing error: {e}")
             return None
-    def analyze_market_performance(self, market, timeframe):
-        df = self.fetch_market_data(market, timeframe)
-        performance_metrics = {
-            'technical_analysis': self.calculate_technical_indicators(df),
-            'volume_analysis': self.analyze_volume_profile(df),
-            'pattern_analysis': self.detect_complex_patterns(df),
-            'sentiment': self.analyze_market_sentiment(market),
-            'institutional_activity': self.detect_institutional_activity(market)
-        }
-        
-        return {
-            'overall_score': self.calculate_performance_score(performance_metrics),
-            'metrics': performance_metrics,
-            'recommendations': self.generate_trading_recommendations(performance_metrics)
-        }
 
     def validate_signal_data(self, signal_data):
         required_fields = ['type', 'price', 'score', 'timestamp']
@@ -513,6 +462,86 @@ class BaseScanner(tk.Frame):
         except Exception as e:
             self.logger.error(f"Double bottom detection error: {e}")
             return None
+    def detect_triple_bottom(self, df):
+        try:
+            # Get local minima
+            df['min'] = df['low'].rolling(window=5, center=True).min()
+            bottoms = df[df['low'] == df['min']].index.tolist()
+            
+            if len(bottoms) >= 3:
+                # Get the last three bottoms
+                bottom1_price = df.loc[bottoms[-3], 'low']
+                bottom2_price = df.loc[bottoms[-2], 'low']
+                bottom3_price = df.loc[bottoms[-1], 'low']
+                
+                # Check if bottoms are within 2% of each other
+                price_range = 0.02
+                if (abs(bottom1_price - bottom2_price) / bottom1_price < price_range and
+                    abs(bottom2_price - bottom3_price) / bottom2_price < price_range and
+                    abs(bottom1_price - bottom3_price) / bottom1_price < price_range):
+                    
+                    # Verify volume confirmation
+                    avg_volume = df['volume'].mean()
+                    if df.loc[bottoms[-1], 'volume'] > avg_volume * 1.5:
+                        return {
+                            'strength': 'very strong',
+                            'score': 0.9,
+                            'confirmation': True
+                        }
+                        
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Triple bottom detection error: {e}")
+            return None
+    def detect_cup_handle(self, df):
+        try:
+            # Calculate required metrics
+            df['sma_20'] = df['close'].rolling(window=20).mean()
+            df['price_range'] = df['high'] - df['low']
+            df['avg_range'] = df['price_range'].rolling(window=20).mean()
+            
+            # Cup formation requirements
+            cup_depth = df['price_range'].max() * 0.15  # Cup should be 15-30% deep
+            cup_length = 30  # Look back period for cup formation
+            handle_length = 15  # Handle should be shorter than cup
+            
+            if len(df) < cup_length + handle_length:
+                return None
+                
+            # Check for cup formation
+            cup_section = df[-cup_length-handle_length:-handle_length]
+            left_peak = cup_section['high'].iloc[0]
+            bottom = cup_section['low'].min()
+            right_peak = cup_section['high'].iloc[-1]
+            
+            # Cup criteria
+            cup_depth_ok = (left_peak - bottom) / left_peak > 0.15
+            cup_symmetry = abs(left_peak - right_peak) / left_peak < 0.05
+            
+            # Handle formation
+            handle_section = df[-handle_length:]
+            handle_high = handle_section['high'].max()
+            handle_low = handle_section['low'].min()
+            handle_depth = (right_peak - handle_low) / right_peak < 0.15
+            
+            # Volume confirmation
+            volume_increase = df['volume'].iloc[-1] > df['volume'].rolling(window=20).mean().iloc[-1] * 1.5
+            
+            if cup_depth_ok and cup_symmetry and handle_depth and volume_increase:
+                return {
+                    'type': 'CUP_AND_HANDLE',
+                    'strength': 'strong',
+                    'score': 0.85,
+                    'confirmation': True,
+                    'target': right_peak * 1.15  # Typical target is 15% above right peak
+                }
+                
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Cup and handle detection error: {e}")
+            return None
 
     def detect_bull_flag(self, df):
         try:
@@ -536,620 +565,6 @@ class BaseScanner(tk.Frame):
         except Exception as e:
             self.logger.error(f"Bull flag detection error: {e}")
             return None
-    def detect_complex_patterns(self, df):
-        patterns = {
-            'triple_bottom': self.detect_triple_bottom(df),
-            'head_shoulders': self.detect_head_shoulders(df),
-            'cup_handle': self.detect_cup_handle(df)
-        }
-        return {k: v for k, v in patterns.items() if v is not None}
-    def detect_head_shoulders(self, df):
-        try:
-            # Find potential shoulders and head
-            peaks = self.find_peaks(df['high'], distance=10)
-            troughs = self.find_peaks(-df['low'], distance=10)
-            
-            pattern_data = {
-                'left_shoulder': self.validate_shoulder(df, peaks, 0),
-                'head': self.validate_head(df, peaks, troughs),
-                'right_shoulder': self.validate_shoulder(df, peaks, -1),
-                'neckline': self.calculate_neckline(df, troughs)
-            }
-            
-            if self.validate_hs_pattern(pattern_data):
-                return {
-                    'type': 'HEAD_AND_SHOULDERS',
-                    'probability': self.calculate_pattern_probability(pattern_data),
-                    'target': self.calculate_hs_target(pattern_data),
-                    'validation': pattern_data
-                }
-            return None
-        except Exception as e:
-            self.logger.error(f"Head and Shoulders detection error: {e}")
-            return None
-
-    def validate_pattern_completion(self, df, pattern_type):
-        validation_metrics = {
-            'volume_confirmation': self.check_volume_confirmation(df),
-            'price_action': self.analyze_price_action_confirmation(df),
-            'momentum_alignment': self.check_momentum_alignment(df),
-            'time_symmetry': self.check_pattern_symmetry(df)
-        }
-        
-        completion_score = sum(validation_metrics.values()) / len(validation_metrics)
-        return {
-            'completion_score': completion_score,
-            'metrics': validation_metrics,
-            'probability': self.calculate_completion_probability(completion_score)
-        }
-
-
-    def setup_deep_learning_models(self):
-        self.dl_models = {
-            'pattern_recognition': self.create_pattern_recognition_model(),
-            'trend_prediction': self.create_trend_prediction_model(),
-            'sentiment_analyzer': self.create_sentiment_model()
-        }
-        return self.dl_models
-
-    def create_pattern_recognition_model(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.LSTM(64, input_shape=(30, 5)),
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(16, activation='relu'),
-            tf.keras.layers.Dense(1, activation='sigmoid')
-        ])
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        return model
-
-    def predict_market_trends(self, market, timeframe):
-        df = self.fetch_market_data(market, timeframe)
-        features = self.prepare_prediction_features(df)
-        
-        predictions = {
-            'short_term': self.predict_trend_timeframe(features, timeframe='short'),
-            'medium_term': self.predict_trend_timeframe(features, timeframe='medium'),
-            'long_term': self.predict_trend_timeframe(features, timeframe='long')
-        }
-        
-        return {
-            'predictions': predictions,
-            'confidence_scores': self.calculate_prediction_confidence(predictions),
-            'market_context': self.get_market_context(df)
-        }
-
-    def analyze_market_sentiment(self, market):
-        news_data = self.fetch_market_news(market)
-        social_data = self.fetch_social_metrics(market)
-        
-        sentiment_scores = {
-            'news_sentiment': self.analyze_news_sentiment(news_data),
-            'social_sentiment': self.analyze_social_sentiment(social_data),
-            'technical_sentiment': self.analyze_technical_sentiment(market)
-        }
-        
-        return {
-            'overall_sentiment': self.combine_sentiment_scores(sentiment_scores),
-            'sentiment_breakdown': sentiment_scores,
-            'confidence_level': self.calculate_sentiment_confidence(sentiment_scores)
-        }
-
-    def fetch_market_news(self, market):
-        try:
-            # Extract base asset from market pair
-            base_asset = market.split('/')[0]
-            
-            # Fetch market data
-            news_data = {
-                'market': market,
-                'sentiment': self.analyze_market_sentiment(market),
-                'volume_profile': self.analyze_volume_profile(
-                    self.fetch_market_data(market, '1h', limit=100)
-                ),
-                'technical_signals': self.get_technical_sentiment(
-                    self.fetch_market_data(market, '1h', limit=100)
-                )
-            }
-            
-            return news_data
-            
-        except Exception as e:
-            self.logger.error(f"Error fetching news for {market}: {e}")
-            return None
-
-    def fetch_social_metrics(self, market):
-        try:
-            # Extract base asset from market pair
-            base_asset = market.split('/')[0]
-            
-            # Initialize default metrics
-            social_metrics = {
-                'market': market,
-                'sentiment_score': 0.0,
-                'volume_score': 0.0,
-                'social_volume': 0.0,
-                'trend_strength': 0.0
-            }
-            
-            # Calculate metrics from available data
-            market_data = self.fetch_market_data(market, '1h', limit=24)
-            if market_data is not None:
-                # Volume-based social score
-                volume_mean = market_data['volume'].mean()
-                volume_std = market_data['volume'].std()
-                social_metrics['volume_score'] = (market_data['volume'].iloc[-1] - volume_mean) / volume_std if volume_std > 0 else 0
-                
-                # Trend strength
-                social_metrics['trend_strength'] = self.detect_trend_strength(market_data)
-                
-                # Overall sentiment
-                sentiment_data = self.analyze_market_sentiment(market)
-                social_metrics['sentiment_score'] = sentiment_data.get('sentiment_score', 0.0)
-                
-            return social_metrics
-            
-        except Exception as e:
-            self.logger.error(f"Error calculating social metrics for {market}: {e}")
-            return None
-    def analyze_news_sentiment(self, market):
-        try:
-            # Initialize sentiment metrics
-            sentiment_data = {
-                'market': market,
-                'overall_score': 0.0,
-                'technical_score': 0.0,
-                'volume_score': 0.0,
-                'momentum_score': 0.0
-            }
-            
-            # Get market data without recursion
-            df = self.fetch_market_data(market, '1h', limit=24)
-            if df is not None:
-                # Technical analysis score
-                technical = self.get_technical_sentiment(df)
-                sentiment_data['technical_score'] = (
-                    1.0 if technical['rsi_sentiment'] == 'oversold' else
-                    0.5 if technical['rsi_sentiment'] == 'neutral' else 0.0
-                )
-                
-                # Volume analysis
-                volume_profile = self.analyze_volume_profile(df)
-                if volume_profile:
-                    sentiment_data['volume_score'] = (
-                        1.0 if volume_profile['volume_trend'] == 'increasing' else 0.0
-                    )
-                
-                # Calculate overall score
-                sentiment_data['overall_score'] = (
-                    sentiment_data['technical_score'] * 0.5 +
-                    sentiment_data['volume_score'] * 0.3 +
-                    sentiment_data['momentum_score'] * 0.2
-                )
-                
-            return sentiment_data
-            
-        except Exception as e:
-            self.logger.error(f"Error analyzing news sentiment for {market}: {e}")
-            return None
-    def analyze_social_sentiment(self, market):
-        if not market or not isinstance(market, str):
-            return None
-            
-        try:
-            sentiment_data = {
-                'market': market,
-                'social_score': 0.0,
-                'volume_impact': 0.0,
-                'trend_score': 0.0,
-                'overall_sentiment': 'neutral'
-            }
-            
-            # Fetch market data with proper error handling
-            df = self.fetch_market_data(market, '1h', limit=24)
-            if df is not None and not df.empty:
-                # Volume analysis
-                volume_profile = self.analyze_volume_profile(df)
-                if volume_profile:
-                    sentiment_data['volume_impact'] = 1.0 if volume_profile['volume_trend'] == 'increasing' else 0.0
-                
-                # Trend analysis
-                trend_strength = self.detect_trend_strength(df)
-                sentiment_data['trend_score'] = trend_strength / 100.0 if trend_strength else 0.0
-                
-                # Technical sentiment
-                tech_sentiment = self.get_technical_sentiment(df)
-                if tech_sentiment:
-                    sentiment_data['social_score'] = (
-                        1.0 if tech_sentiment['rsi_sentiment'] == 'oversold' else
-                        0.5 if tech_sentiment['rsi_sentiment'] == 'neutral' else 0.0
-                    )
-                
-                # Calculate overall sentiment
-                overall_score = (
-                    sentiment_data['social_score'] * 0.4 +
-                    sentiment_data['volume_impact'] * 0.3 +
-                    sentiment_data['trend_score'] * 0.3
-                )
-                
-                sentiment_data['overall_sentiment'] = (
-                    'bullish' if overall_score > 0.7 else
-                    'bearish' if overall_score < 0.3 else
-                    'neutral'
-                )
-                
-            return sentiment_data
-            
-        except Exception as e:
-            self.logger.error(f"Error analyzing social sentiment for {market}: {e}")
-            return None
-
-    def analyze_technical_sentiment(self, market):
-        if not market or not isinstance(market, str):
-            return None
-            
-        try:
-            technical_data = {
-                'market': market,
-                'indicators': {},
-                'patterns': [],
-                'strength': 0.0,
-                'signal': 'neutral'
-            }
-            
-            # Fetch market data with proper error handling
-            df = self.fetch_market_data(market, '1h', limit=100)
-            if df is not None and not df.empty:
-                # Calculate technical indicators
-                df['rsi'] = talib.RSI(df['close'])
-                df['macd'], df['macd_signal'], _ = talib.MACD(df['close'])
-                df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
-                df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
-                
-                latest = df.iloc[-1]
-                
-                # Analyze indicators
-                technical_data['indicators'] = {
-                    'rsi': {
-                        'value': latest['rsi'],
-                        'signal': 'oversold' if latest['rsi'] < 30 else 'overbought' if latest['rsi'] > 70 else 'neutral'
-                    },
-                    'macd': {
-                        'value': latest['macd'],
-                        'signal': 'bullish' if latest['macd'] > latest['macd_signal'] else 'bearish'
-                    },
-                    'ema': {
-                        'signal': 'bullish' if latest['ema_20'] > latest['ema_50'] else 'bearish'
-                    }
-                }
-                
-                # Calculate strength score
-                strength_factors = {
-                    'rsi': 0.3,
-                    'macd': 0.4,
-                    'ema': 0.3
-                }
-                
-                technical_data['strength'] = sum([
-                    strength_factors['rsi'] * (1.0 if technical_data['indicators']['rsi']['signal'] == 'oversold' else 0.0),
-                    strength_factors['macd'] * (1.0 if technical_data['indicators']['macd']['signal'] == 'bullish' else 0.0),
-                    strength_factors['ema'] * (1.0 if technical_data['indicators']['ema']['signal'] == 'bullish' else 0.0)
-                ])
-                
-                # Determine overall signal
-                technical_data['signal'] = (
-                    'strong_buy' if technical_data['strength'] > 0.7 else
-                    'buy' if technical_data['strength'] > 0.5 else
-                    'sell' if technical_data['strength'] < 0.3 else
-                    'neutral'
-                )
-                
-            return technical_data
-            
-        except Exception as e:
-            self.logger.error(f"Error analyzing technical sentiment for {market}: {e}")
-            return None
-
-    def combine_sentiment_scores(self, market):
-        if not market or not isinstance(market, str):
-            return None
-            
-        try:
-            # Initialize combined sentiment data
-            combined_data = {
-                'market': market,
-                'technical_score': 0.0,
-                'social_score': 0.0,
-                'news_score': 0.0,
-                'overall_score': 0.0,
-                'signal': 'neutral'
-            }
-            
-            # Get individual sentiment scores
-            technical = self.analyze_technical_sentiment(market)
-            social = self.analyze_social_sentiment(market)
-            news = self.analyze_news_sentiment(market)
-            
-            # Weight factors for different sentiment types
-            weights = {
-                'technical': 0.5,
-                'social': 0.3,
-                'news': 0.2
-            }
-            
-            # Calculate weighted scores
-            if technical:
-                combined_data['technical_score'] = technical['strength'] * weights['technical']
-            if social:
-                combined_data['social_score'] = (
-                    social['social_score'] * weights['social']
-                    if 'social_score' in social else 0.0
-                )
-            if news:
-                combined_data['news_score'] = (
-                    news['overall_score'] * weights['news']
-                    if 'overall_score' in news else 0.0
-                )
-                
-            # Calculate overall score
-            combined_data['overall_score'] = (
-                combined_data['technical_score'] +
-                combined_data['social_score'] +
-                combined_data['news_score']
-            )
-            
-            # Determine signal based on overall score
-            combined_data['signal'] = (
-                'strong_buy' if combined_data['overall_score'] > 0.7 else
-                'buy' if combined_data['overall_score'] > 0.5 else
-                'sell' if combined_data['overall_score'] < 0.3 else
-                'neutral'
-            )
-            
-            return combined_data
-            
-        except Exception as e:
-            self.logger.error(f"Error combining sentiment scores for {market}: {e}")
-            return None
-    def calculate_sentiment_confidence(self, market):
-        if not market or not isinstance(market, str):
-            return None
-            
-        try:
-            confidence_data = {
-                'market': market,
-                'confidence_score': 0.0,
-                'signal_strength': 'weak',
-                'confirmation_count': 0,
-                'metrics': {}
-            }
-            
-            # Get sentiment data
-            technical = self.analyze_technical_sentiment(market)
-            social = self.analyze_social_sentiment(market)
-            news = self.analyze_news_sentiment(market)
-            
-            # Count confirmations
-            signals = []
-            if technical and technical.get('signal') != 'neutral':
-                signals.append(technical['signal'])
-                confidence_data['metrics']['technical'] = technical['strength']
-                
-            if social and social.get('overall_sentiment') != 'neutral':
-                signals.append(social['overall_sentiment'])
-                confidence_data['metrics']['social'] = social.get('social_score', 0.0)
-                
-            if news and news.get('overall_score', 0) > 0:
-                signals.append('bullish' if news['overall_score'] > 0.5 else 'bearish')
-                confidence_data['metrics']['news'] = news['overall_score']
-            
-            # Calculate confidence score
-            confidence_data['confirmation_count'] = len(signals)
-            if confidence_data['confirmation_count'] > 0:
-                confidence_data['confidence_score'] = sum(confidence_data['metrics'].values()) / len(signals)
-                
-            # Determine signal strength
-            confidence_data['signal_strength'] = (
-                'very_strong' if confidence_data['confidence_score'] > 0.8 else
-                'strong' if confidence_data['confidence_score'] > 0.6 else
-                'moderate' if confidence_data['confidence_score'] > 0.4 else
-                'weak'
-            )
-            
-            return confidence_data
-            
-        except Exception as e:
-            self.logger.error(f"Error calculating sentiment confidence for {market}: {e}")
-            return None
-
-    def prepare_prediction_features(self, df):
-        # Technical indicators
-        df['rsi'] = talib.RSI(df['close'])
-        df['macd'], _, _ = talib.MACD(df['close'])
-        df['atr'] = talib.ATR(df['high'], df['low'], df['close'])
-        
-        # Volume features
-        df['volume_sma'] = df['volume'].rolling(20).mean()
-        df['volume_ratio'] = df['volume'] / df['volume_sma']
-        
-        # Price action features
-        df['price_momentum'] = df['close'].pct_change(5)
-        df['volatility'] = df['close'].rolling(20).std()
-        
-        return df
-
-    def train_models_incremental(self, new_data):
-        for model_name, model in self.dl_models.items():
-            X, y = self.prepare_training_data(new_data, model_name)
-            model.fit(X, y, epochs=1, batch_size=32, verbose=0)
-            self.update_model_metrics(model_name, model)
-    def initialize_backtesting_engine(self):
-        self.backtest_config = {
-            'timeframes': ['15m', '1h', '4h', '1d'],
-            'lookback_periods': [100, 200, 500],
-            'monte_carlo_iterations': 1000,
-            'optimization_windows': {'train': 200, 'test': 50}
-        }
-        return self.setup_backtest_environment()
-
-    def run_multi_timeframe_backtest(self, strategy, market):
-        results = {}
-        for timeframe in self.backtest_config['timeframes']:
-            df = self.fetch_market_data(market, timeframe)
-            signals = self.generate_backtest_signals(df, strategy)
-            
-            performance = {
-                'returns': self.calculate_returns(signals),
-                'metrics': self.calculate_performance_metrics(signals),
-                'drawdown': self.calculate_drawdown_metrics(signals)
-            }
-            
-            results[timeframe] = {
-                'signals': signals,
-                'performance': performance,
-                'validation': self.validate_strategy_results(performance)
-            }
-        
-        return self.combine_timeframe_results(results)
-
-    def monte_carlo_simulation(self, signals, iterations=1000):
-        base_equity = 10000  # Starting equity
-        results = []
-        
-        for _ in range(iterations):
-            shuffled_returns = self.shuffle_returns(signals['returns'])
-            equity_curve = self.simulate_equity_curve(shuffled_returns, base_equity)
-            
-            results.append({
-                'final_equity': equity_curve[-1],
-                'max_drawdown': self.calculate_max_drawdown(equity_curve),
-                'sharpe_ratio': self.calculate_sharpe_ratio(shuffled_returns)
-            })
-        
-        return {
-            'confidence_intervals': self.calculate_confidence_intervals(results),
-            'risk_metrics': self.analyze_simulation_risks(results),
-            'optimization_suggestions': self.generate_optimization_suggestions(results)
-        }
-
-    def walk_forward_optimization(self, strategy, market):
-        windows = self.backtest_config['optimization_windows']
-        optimization_results = []
-        
-        for i in range(0, len(self.data) - windows['train'] - windows['test'], windows['test']):
-            train_data = self.data[i:i + windows['train']]
-            test_data = self.data[i + windows['train']:i + windows['train'] + windows['test']]
-            
-            # Optimize parameters on training data
-            optimal_params = self.optimize_strategy_parameters(strategy, train_data)
-            
-            # Test on out-of-sample data
-            test_results = self.test_strategy(strategy, test_data, optimal_params)
-            
-            optimization_results.append({
-                'window': {'start': i, 'end': i + windows['train'] + windows['test']},
-                'optimal_params': optimal_params,
-                'test_performance': test_results
-            })
-        
-        return {
-            'optimization_summary': self.summarize_optimization_results(optimization_results),
-            'parameter_stability': self.analyze_parameter_stability(optimization_results),
-            'recommended_parameters': self.get_recommended_parameters(optimization_results)
-        }
-    def analyze_enhanced_order_flow(self, market):
-        order_book = self.binance.fetch_order_book(market, limit=100)
-        trades = self.binance.fetch_trades(market, limit=1000)
-        
-        return {
-            'liquidity_analysis': self.analyze_liquidity_levels(order_book),
-            'trade_flow': self.analyze_trade_flow(trades),
-            'order_book_imbalance': self.calculate_order_imbalance(order_book),
-            'smart_money_activity': self.detect_smart_money(trades, order_book)
-        }
-
-    def detect_institutional_activity(self, market):
-        trades = self.binance.fetch_trades(market, limit=1000)
-        order_book = self.binance.fetch_order_book(market, limit=100)
-        
-        return {
-            'large_orders': self.track_large_orders(trades),
-            'iceberg_detection': self.detect_iceberg_orders(market),
-            'accumulation_zones': self.find_accumulation_zones(market),
-            'institutional_levels': self.identify_institutional_levels(market)
-        }
-
-    def enhanced_volume_profile(self, market, timeframe):
-        df = self.fetch_market_data(market, timeframe)
-        
-        profile_data = {
-            'volume_nodes': self.calculate_volume_nodes(df),
-            'poc_analysis': self.analyze_poc_levels(df),
-            'value_areas': self.calculate_value_areas(df),
-            'volume_delta': self.calculate_volume_delta(df)
-        }
-        
-        return {
-            'profile': profile_data,
-            'key_levels': self.identify_key_levels(profile_data),
-            'trading_opportunities': self.find_volume_opportunities(profile_data)
-        }
-
-    def analyze_liquidity_levels(self, order_book):
-        bids = pd.DataFrame(order_book['bids'], columns=['price', 'volume'])
-        asks = pd.DataFrame(order_book['asks'], columns=['price', 'volume'])
-        
-        return {
-            'bid_clusters': self.find_liquidity_clusters(bids),
-            'ask_clusters': self.find_liquidity_clusters(asks),
-            'liquidity_score': self.calculate_liquidity_score(bids, asks),
-            'significant_levels': self.find_significant_levels(bids, asks)
-        }
-
-    def detect_smart_money(self, trades, order_book):
-        large_trades = [trade for trade in trades if float(trade['amount']) > self.get_size_threshold(trades)]
-        
-        return {
-            'large_trade_impact': self.analyze_price_impact(large_trades),
-            'accumulation_patterns': self.detect_accumulation(trades),
-            'distribution_patterns': self.detect_distribution(trades),
-            'smart_money_levels': self.identify_smart_money_levels(trades, order_book)
-        }
-
-    def calculate_volume_delta(self, df):
-        df['buy_volume'] = df['volume'] * (df['close'] > df['open']).astype(float)
-        df['sell_volume'] = df['volume'] * (df['close'] <= df['open']).astype(float)
-        
-        return {
-            'delta': df['buy_volume'] - df['sell_volume'],
-            'cumulative_delta': (df['buy_volume'] - df['sell_volume']).cumsum(),
-            'delta_strength': self.calculate_delta_strength(df),
-            'volume_trends': self.identify_volume_trends(df)
-        }
-
-    def validate_pattern_structure(self, df, pattern_type):
-        structure_requirements = {
-            'HEAD_AND_SHOULDERS': {
-                'peak_ratios': self.check_peak_ratios,
-                'volume_profile': self.check_volume_pattern,
-                'time_symmetry': self.check_time_symmetry
-            },
-            'TRIPLE_BOTTOM': {
-                'trough_alignment': self.check_trough_alignment,
-                'price_confirmation': self.check_price_confirmation,
-                'momentum_divergence': self.check_momentum_divergence
-            }
-        }
-        
-        validation_results = {}
-        for check_name, check_func in structure_requirements[pattern_type].items():
-            validation_results[check_name] = check_func(df)
-        
-        return {
-            'valid': all(validation_results.values()),
-            'details': validation_results,
-            'confidence': self.calculate_validation_confidence(validation_results)
-        }
 
     def analyze_volume_patterns(self, df):
         volume_signals = []
@@ -1244,4 +659,3 @@ class BaseScanner(tk.Frame):
         finally:
             if 'db1' in locals():
                 db1.close()
-

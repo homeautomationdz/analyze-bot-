@@ -1,892 +1,662 @@
 import tkinter as tk
 from tkinter import ttk
-import logging
+from base import BaseScanner
+import ccxt
+import sqlite3
+from datetime import datetime
+import time
+import csv
+from market_app import MarketApp
+import talib
+import pandas as pd
+from tkinter import messagebox 
+from tkinter import messagebox, ttk
 from market_scanner import MarketScanner
 import threading
-import pandas as pd
-import mplfinance as mpf
-from datetime import datetime
-import json
-import sqlite3
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import time
-import ccxt
-import talib
-import os
+import logging
+
 
 class ScannerGUI(MarketScanner):
     def __init__(self, master=None):
         super().__init__(master)
-        self.master = master
-        self.master.title("Market Scanner")
-        self.master.geometry("1200x800")
-        self.master.configure(bg='#1E1E1E')
         
-        # Initialize core components
-        self.setup_logger()
-        self.setup_database()
-        self.setup_variables()
-        self.setup_exchange()
-        
-        # Setup GUI components
-        self.setup_styles()
-        self.create_main_layout()
-        self.create_navigation_bar()
-        self.create_left_sidebar()
-        self.create_center_panel()
-        self.create_right_panel()
-        self.create_bottom_panel()
-        
-        # Try auto-login
-        if not self.auto_login():
-            self.create_auth_window()
-        else:
-            self.start_scanning()
-
-    def setup_styles(self):
-        style = ttk.Style()
-        style.configure('Dashboard.TFrame', background='#1E1E1E')
-        style.configure('Dashboard.TLabel', background='#1E1E1E', foreground='white')
-        style.configure('Dashboard.TButton', background='#2C2C2C', foreground='white')
-        style.configure('Auth.TLabel', background='#1E1E1E', foreground='white', font=('Helvetica', 10))
-        style.configure('Error.TLabel', background='#1E1E1E', foreground='red', font=('Helvetica', 10))
-
-    def on_closing(self):
-        """Handle window closing properly"""
-        if self.scanning:
-            self.stop_scanning()
-        self.cleanup()
-        self.master.quit()
-        self.master.destroy()
-
-    def cleanup(self):
-        """Enhanced cleanup with proper event handling"""
-        self.scanning = False
-        
-        if hasattr(self, 'active_streams'):
-            self.active_streams.clear()
-            
-        if hasattr(self, 'binance'):
-            try:
-                if isinstance(self.binance, ccxt.binance):
-                    self.binance = None
-                self.logger.info("Exchange connection closed successfully")
-            except Exception as e:
-                self.logger.error(f"Error closing exchange connection: {e}")
-                
-        if hasattr(self, 'save_favorites'):
-            self.save_favorites()
-
-        
-        # Try auto-login first
-        if not self.auto_login():
-            # Initialize exchange connection
-            self.initialize_exchange()
-            # Setup GUI after exchange initialization
-            self.setup_gui()
-            # Show authentication window only if auto-login fails
-            self.create_auth_window()
-        else:
-            # Setup GUI after successful auto-login
-            self.setup_gui()
-            self.start_scanning()
-
-    def setup_logger(self, log_file='logs/scanner.log'):
-        os.makedirs('logs', exist_ok=True)
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        
-        # File handler with rotation
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(file_handler)
-        
-        # Console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(console_handler)
-        
-    def setup_database(self):
+        # Database initialization
         self.db_connect = "connection.db"
         self.db_signals = "Signals.db"
+        
+        # Create both database tables
         self.sql_operations('create', self.db_connect, 'userinfo')
         self.sql_operations('create', self.db_signals, 'Signals')
         
-    def setup_variables(self):
+        # Core components initialization
+        self.tel_id = None
+        self.bot_tocken = None
         self.scanning = False
-        self.current_market = None
-        self.timeframe_var = tk.StringVar(value='15m')
-        self.exchange_var = tk.StringVar(value='Binance')
-        self.filter_var = tk.StringVar(value='Best-vol')
-        self.user_choice = tk.IntVar(value=0)
-        self.active_streams = set()
-        self.choose_list = tk.StringVar(value='USDT')
-        self.choose_time = tk.StringVar(value='15m')
-        self.binance = None
+        self.filtered_list = []
+        self.selected_markets = []
+        self.timeframesdic = {
+            '1s': 0, '1m': 1, '5m': 2, '15m': 3,
+            '30m': 4, '1h': 5, '4h': 6, '1d': 7
+        }
         
-        # Authentication variables
-        self.api_key = tk.StringVar()
-        self.api_secret = tk.StringVar()
-        self.is_authenticated = False
-    def setup_exchange(self):
-        """Initialize exchange connection with default settings"""
+        # Setup GUI and authentication
+        self.setup_gui()
+        self.auth = self.user_auth(self.db_connect, "userinfo")
+
+
+
+    def user_auth(self, file_name, table_name):
+        self.auth = tk.Toplevel()
+        self.auth.title('User Authentication')
+        self.auth.geometry('500x300')
+        self.auth.resizable(True, True)
+        self.auth.columnconfigure(0, weight=1)
+
+        username_label = tk.Label(self.auth, text='Username:')
+        username_label.grid(row=0, column=0, padx=5, pady=5)
+        self.username_entry = tk.Entry(self.auth, width=50)
+        self.username_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        private_key_label = tk.Label(self.auth, text='Private Key:')
+        private_key_label.grid(row=1, column=0, padx=5, pady=5)
+        self.private_key_entry = tk.Entry(self.auth, show='*', width=50)
+        self.private_key_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        sec_key_label = tk.Label(self.auth, text='Secret Key:')
+        sec_key_label.grid(row=2, column=0, padx=5, pady=5)
+        self.sec_key_entry = tk.Entry(self.auth, show='*', width=50)
+        self.sec_key_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        phrase_label = tk.Label(self.auth, text='Phrase:')
+        phrase_label.grid(row=3, column=0, padx=5, pady=5)
+        self.phrase_entry = tk.Entry(self.auth, show='*', width=50)
+        self.phrase_entry.grid(row=3, column=1, padx=5, pady=5)
+
+        tel_id_label = tk.Label(self.auth, text='Tel_Id:')
+        tel_id_label.grid(row=4, column=0, padx=5, pady=5)
+        self.tel_id_entry = tk.Entry(self.auth, show='*', width=50)
+        self.tel_id_entry.grid(row=4, column=1, padx=5, pady=5)
+
+        tocken_label = tk.Label(self.auth, text='Tel_Bot_token')
+        tocken_label.grid(row=5, column=0, padx=5, pady=5)
+        self.tocken_entry = tk.Entry(self.auth, show='*', width=50)
+        self.tocken_entry.grid(row=5, column=1, padx=5, pady=5)
+
+        submit_button = tk.Button(self.auth, text='Submit', width=20, command=self.submit)
+        submit_button.grid(row=6, column=0, padx=5, pady=5)
+
+        ok_button = tk.Button(self.auth, text='Cancel', width=20, command=self.quittheapp)
+        ok_button.grid(row=6, column=1, padx=5, pady=5)
+
+        return self.auth
+    def submit(self):
         try:
-            self.binance = ccxt.binance({
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'spot',
-                    'adjustForTimeDifference': True,
-                    'recvWindow': 5000
-                },
-                'timeout': 30000
-            })
+            db1 = sqlite3.connect('connection.db')
+            c1 = db1.cursor()
             
-            # Load markets
-            if self.is_authenticated:
-                self.binance.load_markets()
-                self.logger.info("Exchange connection initialized successfully")
+            # First, check if we need to update telegram credentials
+            c1.execute('SELECT tel_id, tel_token FROM userinfo')
+            telegram_data = c1.fetchone()
             
+            if not telegram_data or not telegram_data[0] or not telegram_data[1]:
+                # Prompt for telegram credentials if missing
+                self.tel_id = "1434650273"  # Replace with your actual Telegram ID
+                self.bot_token = "7342130675:AAGkKBpPnfbgMh1J8FADQ3PaD5hV_r6PhfA"  # Replace with your actual Bot Token
+                
+                # Update database with telegram credentials
+                c1.execute('UPDATE userinfo SET tel_id = ?, tel_token = ?', (self.tel_id, self.bot_token))
+                db1.commit()
+                
+                self.logger.info(f"Updated telegram credentials - ID: {self.tel_id}")
+            else:
+                self.tel_id = telegram_data[0]
+                self.bot_token = telegram_data[1]
+                
+            # Continue with rest of credentials
+            c1.execute('SELECT * FROM userinfo')
+            data = c1.fetchone()
+            
+            if data:
+                # Auto-fill the entry fields with existing data
+                self.username_entry.insert(0, data[0])
+                self.private_key_entry.insert(0, data[1])
+                self.sec_key_entry.insert(0, data[2])
+                self.phrase_entry.insert(0, data[3])
+                self.tel_id_entry.insert(0, data[4])
+                self.tocken_entry.insert(0, data[5])
+
+                private_key = data[1]
+                secret_key = data[2]
+                phraseword = data[3]
+                tel_id = data[4]
+                bot_token = data[5]
+
+                self.logger.info("Loading existing user credentials")
+                self.logger.info(f"Raw telegram ID: {tel_id}")
+                self.logger.info(f"Raw bot token: {bot_token}")
+
+                if self.con(file_name='connection.db'):
+                    self.api_key = str(private_key)
+                    self.secret_key = str(secret_key)
+                    self.phrase = phraseword
+                    self.valid = True
+                    self.tel_id = str(tel_id)
+                    self.bot_token = str(bot_token)
+
+                    # Test telegram connection
+                    test_message = "🚀 Market Scanner initialized successfully"
+                    self.send_telegram_update(test_message)
+                else:
+                    self.master.destroy()
+
+                if self.auth:
+                    try:
+                        self.auth.destroy()
+                    except Exception as e:
+                        self.logger.error(f"Error destroying auth window: {e}")
+
+            elif data is None and len(self.username_entry.get()) > 0 and len(self.private_key_entry.get()) > 0 and len(self.phrase_entry.get()) > 0:
+                username = self.username_entry.get()
+                private_key = self.private_key_entry.get()
+                secret_key = self.sec_key_entry.get()
+                phrase_key = self.phrase_entry.get()
+                tel_id = self.tel_id_entry.get()
+                bot_token = self.tocken_entry.get()
+
+                self.logger.info("Registering new user credentials")
+
+                c1.execute('INSERT INTO userinfo (name, key, secret, phrase, tel_id, tel_token) VALUES (?, ?, ?, ?, ?, ?)',
+                        (username, private_key, secret_key, phrase_key, tel_id, bot_token))
+                db1.commit()
+
+                if self.auth:
+                    try:
+                        self.auth.destroy()
+                    except Exception as e:
+                        self.logger.error(f"Error destroying auth window: {e}")
+
+                if self.con(file_name='connection.db'):
+                    self.api_key = str(private_key)
+                    self.secret_key = str(secret_key)
+                    self.phrase = phrase_key
+                    self.valid = True
+                    self.tel_id = str(tel_id)
+                    self.bot_token = str(bot_token)
+
+                    # Test telegram connection for new user
+                    test_message = "🎉 New user registered - Market Scanner initialized"
+                    self.send_telegram_update(test_message)
+                else:
+                    self.master.destroy()
+
+            else:
+                messagebox.showerror('Invalid User Data', 'Please check Your Data and try again')
+                self.master.destroy()
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Database error: {e}")
+            messagebox.showerror('Database Error', 'An error occurred while accessing the database.')
+
         except Exception as e:
-            self.logger.error(f"Exchange setup error: {e}")
-    def auto_login(self):
-        saved_data = self.sql_operations('fetch', self.db_connect, 'userinfo')
-        if saved_data:
-            last_login = saved_data[-1]
-            try:
-                # Clear any existing invalid credentials
-                self.sql_operations('delete', self.db_connect, 'userinfo')
-                
-                # Initialize exchange with saved credentials
-                self.binance = ccxt.binance({
-                    'apiKey': last_login['key'].strip(),
-                    'secret': last_login['secret'].strip(),
-                    'enableRateLimit': True,
-                    'options': {
-                        'adjustForTimeDifference': True,
-                        'recvWindow': 5000
-                    }
-                })
-                
-                # Verify API access
-                self.binance.fetch_balance()
-                self.binance.load_markets()
-                
-                # Credentials valid - restore settings
-                self.tel_id = last_login['tel_id']
-                self.bot_token = last_login['tel_token']
-                self.is_authenticated = True
-                
-                # Initialize scanner
-                self.setup_market_streams()
-                self.master.title(f"Market Scanner - {last_login['name']}")
-                self.start_scanning()
-                
-                self.logger.info(f"Login successful for user: {last_login['name']}")
-                return True
-                
-            except Exception as e:
-                self.logger.info("Please enter valid API credentials")
-                return False
-                
-        return False
+            self.logger.error(f"Error in submit: {e}")
+            messagebox.showerror('Error', 'An unexpected error occurred.')
 
+        finally:
+            if 'db1' in locals():
+                db1.close()
 
-    def show_error(self, title, message):
-        """Display error message in a popup window"""
-        error_window = tk.Toplevel(self.master)
-        error_window.title(title)
-        error_window.geometry("300x150")
-        error_window.configure(bg='#1E1E1E')
-        
-        # Center the window
-        error_window.geometry("+%d+%d" % (
-            self.master.winfo_rootx() + 50,
-            self.master.winfo_rooty() + 50))
-        
-        # Error message
-        ttk.Label(error_window, 
-                text=message,
-                style='Error.TLabel',
-                wraplength=250).pack(pady=20)
-        
-        # OK button
-        ttk.Button(error_window,
-                text="OK",
-                command=error_window.destroy).pack(pady=10)
-        
-        # Make window modal
-        error_window.transient(self.master)
-        error_window.grab_set()
-        self.master.wait_window(error_window)
-    def create_auth_window(self):
-        self.auth_window = tk.Toplevel(self.master)
-        self.auth_window.title("Login to Market Scanner")
-        self.auth_window.geometry("400x500")
-        self.auth_window.configure(bg='#1E1E1E')
-        
-        # Fetch stored credentials immediately
-        stored_credentials = self.sql_operations('fetch', self.db_connect, 'userinfo')
-        last_login = stored_credentials[-1] if stored_credentials else {}
-        
-        # Create frames
-        header_frame = ttk.Frame(self.auth_window, style='Auth.TFrame')
-        header_frame.pack(fill='x', padx=20, pady=20)
-        
-        form_frame = ttk.Frame(self.auth_window, style='Auth.TFrame')
-        form_frame.pack(fill='both', expand=True, padx=20)
-        
-        # Header
-        ttk.Label(header_frame, text="Market Scanner Login",
-                font=('Helvetica', 16, 'bold'),
-                style='Auth.TLabel').pack()
-        
-        # Form fields with auto-population
-        fields = [
-            ('Name:', 'name', False),
-            ('API Key:', 'key', True),
-            ('API Secret:', 'secret', True),
-            ('Passphrase:', 'phrase', True),
-            ('Telegram ID:', 'tel_id', False),
-            ('Telegram Token:', 'tel_token', True)
-        ]
-        
-        self.auth_vars = {}
-        for label, key, is_secure in fields:
-            field_frame = ttk.Frame(form_frame)
-            field_frame.pack(fill='x', pady=10)
-            
-            ttk.Label(field_frame, text=label, style='Auth.TLabel').pack(anchor='w')
-            
-            # Set stored value from database
-            stored_value = last_login.get(key, '')
-            self.auth_vars[key] = tk.StringVar(value=stored_value)
-            
-            # Create entry with stored value
-            entry = ttk.Entry(field_frame, textvariable=self.auth_vars[key])
-            if is_secure:
-                entry.configure(show='*')
-            entry.pack(fill='x')
-            
-            # Insert stored value
-            if stored_value:
-                entry.delete(0, tk.END)
-                entry.insert(0, stored_value)
-        
-        # Buttons
-        button_frame = ttk.Frame(form_frame)
-        button_frame.pack(fill='x', pady=20)
-        
-        ttk.Button(button_frame, text="Login",
-                command=self.process_login).pack(side='left', padx=5)
-        ttk.Button(button_frame, text="Clear Fields",
-                command=lambda: self.clear_fields()).pack(side='right', padx=5)
+    def quittheapp(self):
+        if self.auth:
+            self.auth.destroy()
+        self.master.destroy()
 
-def clear_fields(self):
-    """Clear all authentication fields"""
-    for var in self.auth_vars.values():
-        var.set('')
+    def setup_gui(self):
+        # Strategy selection
+        str_manu = ['ALL']
+        self.choose_str = tk.StringVar(self.master)
+        self.choose_str.set('ALL')
+        self.option_str = tk.OptionMenu(self.master, self.choose_str, *str_manu)
+        self.option_str.configure(font="Arial,10", state='normal')
+        self.option_str.grid(row=0, column=0)
 
-    def process_login(self):
-        auth_data = {key: var.get() for key, var in self.auth_vars.items()}
-        
-        if all(auth_data.values()):
-            try:
-                # Test API connection first
-                test_exchange = ccxt.binance({
-                    'apiKey': auth_data['key'].strip(),
-                    'secret': auth_data['secret'].strip(),
-                    'enableRateLimit': True
-                })
-                
-                # Verify API keys by making a test request
-                test_exchange.fetch_balance()
-                
-                # If successful, store credentials and initialize main exchange
-                self.binance = test_exchange
-                self.sql_operations('insert', self.db_connect, 'userinfo', **auth_data)
-                
-                # Initialize scanner components
-                self.tel_id = auth_data['tel_id']
-                self.bot_token = auth_data['tel_token']
-                self.setup_market_streams()
-                
-                self.auth_window.destroy()
-                self.master.title(f"Market Scanner - {auth_data['name']}")
-                self.start_scanning()
-                
-            except ccxt.AuthenticationError:
-                self.show_error("Authentication Error", "Invalid API credentials. Please check your API Key and Secret.")
-            except Exception as e:
-                self.show_error("Connection Error", f"Unable to connect to exchange: {str(e)}")
-        else:
-            self.show_error("Validation Error", "All fields are required")
+        # Timeframes
+        self.timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
+        self.choose_time = tk.StringVar(self.master)
+        self.choose_time.set('15m')
+        self.option_time = tk.OptionMenu(self.master, self.choose_time, *self.timeframes)
+        self.option_time.configure(font="Arial,10", state='normal')
+        self.option_time.grid(row=1, column=3)
 
-    def load_saved_login(self):
-        saved_data = self.sql_operations('fetch', self.db_connect, 'userinfo')
-        if saved_data:
-            last_login = saved_data[-1]
-            for key, var in self.auth_vars.items():
-                var.set(last_login.get(key, ''))
+        # Market list options
+        list_manu = ['Down', 'Top', 'Best-vol', 'Last-vol']
+        self.choose_list = tk.StringVar(self.master)
+        self.choose_list.set('Best-vol')
+        self.option_list = tk.OptionMenu(self.master, self.choose_list, *list_manu)
+        self.option_list.configure(font="Arial,10", state='normal')
+        self.option_list.grid(row=2, column=0)
 
-    def change(self, market_type):
-        """Handle market type changes"""
-        if market_type == 'USDT':
-            return [m for m in self.tickers() if m.endswith('USDT')]
-        elif market_type == 'BTC':
-            return [m for m in self.tickers() if m.endswith('BTC')]
-        return []
+        # Exchange selection
+        list_manu_ex = ['Binance', 'CoinEx', 'Okex', 'BingX']
+        self.choose_listex = tk.StringVar(self.master)
+        self.choose_listex.set('Binance')
+        self.option_listex = tk.OptionMenu(self.master, self.choose_listex, *list_manu_ex)
+        self.option_listex.configure(font="Arial,10", state='normal')
+        self.option_listex.grid(row=2, column=2)
 
-    def cleanup(self):
-        """Enhanced cleanup with proper checks"""
-        # Stop scanning
-        self.scanning = False
+        # Control buttons
+        self.start_button = tk.Button(self.master, text='Start Scanning',
+                                    background='green', font=('Arial', 10),
+                                    command=self.start_scanning)
+        self.start_button.grid(row=0, column=7)
         
-        # Clear active streams
-        if hasattr(self, 'active_streams'):
-            self.active_streams.clear()
-            
-        # Close exchange connection
-        if hasattr(self, 'binance') and self.binance:
-            try:
-                self.binance.close()
-                self.logger.info("Exchange connection closed successfully")
-            except Exception as e:
-                self.logger.error(f"Error closing exchange connection: {e}")
-                
-        # Save any pending data
-        if hasattr(self, 'save_favorites'):
-            self.save_favorites()
-            
-        # Close database connections
-        if hasattr(self, 'db_connect'):
-            self.sql_operations('close', self.db_connect, None)
+        self.stop_button = tk.Button(self.master, text='Stop Scanning',
+                                   background='red', font=('Arial', 10),
+                                   command=self.stop_scanning)
+        self.stop_button.grid(row=0, column=8)
 
+        # User choice checkbox
+        self.user_choice = tk.IntVar(value=0)
+        user_choice = tk.Checkbutton(self.master, text='Custom Markets',
+                                   font=('Arial', 10), fg='red',
+                                   variable=self.user_choice)
+        user_choice.grid(row=2, column=10)
+
+        self.button_choice = tk.Button(self.master, text='Select Markets',
+                                     background='gray', font=('Arial', 10),
+                                     command=self.user_choicelist)
+        self.button_choice.grid(row=2, column=9)
+
+        # Status label
+        self.status_label = tk.Label(self.master, text="Scanner Status: Stopped",
+                                   font=('Arial', 10), fg='red')
+        self.status_label.grid(row=3, column=0, columnspan=4)
+
+    def setup_advanced_filters(self):
+        self.filter_config = {
+            'volume_threshold': 100000,
+            'min_volatility': 0.02,
+            'min_pattern_quality': 0.7,
+            'correlation_threshold': 0.7
+        }
+    def setup_performance_dashboard(self):
+        self.dashboard_metrics = {
+            'trade_performance': {
+                'win_rate': self.calculate_win_rate(),
+                'profit_factor': self.calculate_profit_factor(),
+                'sharpe_ratio': self.calculate_sharpe_ratio()
+            },
+            'market_analysis': {
+                'regime': self.detect_market_regime(),
+                'volatility': self.calculate_volatility(),
+                'correlation': self.analyze_correlations()
+            },
+            'risk_metrics': {
+                'max_drawdown': self.calculate_drawdown(),
+                'value_at_risk': self.calculate_var(),
+                'position_exposure': self.calculate_exposure()
+            }
+        }
+
+    def integrate_gui_components(self):
+        # Create main dashboard frame
+        self.dashboard_frame = ttk.Frame(self.master)
+        self.dashboard_frame.grid(row=4, column=0, columnspan=12, sticky='nsew')
         
-    def create_main_layout(self):
-        self.create_navigation_bar()
-        self.create_left_sidebar()
-        self.create_center_panel()
-        self.create_right_panel()
-        self.create_bottom_panel()
+        # Add performance metrics display
+        self.metrics_display = self.create_metrics_display()
         
-    def create_navigation_bar(self):
-        nav_frame = ttk.Frame(self.master, style='Dashboard.TFrame')
-        nav_frame.grid(row=0, column=0, columnspan=3, sticky='ew', padx=5, pady=5)
+        # Add market regime indicator
+        self.regime_indicator = self.create_regime_indicator()
         
-        # Exchange selector
-        exchanges = ['Binance', 'CoinEx', 'Okex', 'BingX']
-        ttk.OptionMenu(nav_frame, self.exchange_var, 'Binance', *exchanges).pack(side='left', padx=5)
+        # Add trade journal display
+        self.journal_display = self.create_journal_display()
         
-        # Timeframe selector
-        timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
-        ttk.OptionMenu(nav_frame, self.timeframe_var, '15m', *timeframes).pack(side='left', padx=5)
+        # Add risk metrics panel
+        self.risk_panel = self.create_risk_panel()
         
-        # Scanner controls
-        ttk.Button(nav_frame, text='Start', command=self.start_scanning).pack(side='left', padx=5)
-        ttk.Button(nav_frame, text='Stop', command=self.stop_scanning).pack(side='left', padx=5)
+        # Update all displays
+        self.schedule_updates()
+    def create_metrics_display(self):
+        metrics_frame = ttk.LabelFrame(self.dashboard_frame, text="Performance Metrics")
+        metrics_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
         
-        self.status_label = ttk.Label(nav_frame, text="Scanner Status: Stopped", style='Dashboard.TLabel')
-        self.status_label.pack(side='right', padx=5)
+        # Win Rate
+        self.win_rate_label = ttk.Label(metrics_frame, text="Win Rate: ")
+        self.win_rate_label.grid(row=0, column=0, padx=5, pady=2)
+        self.win_rate_value = ttk.Label(metrics_frame, text="0%")
+        self.win_rate_value.grid(row=0, column=1, padx=5, pady=2)
         
-    def create_left_sidebar(self):
-        sidebar = ttk.Frame(self.master, style='Dashboard.TFrame')
-        sidebar.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
+        # Profit Factor
+        self.profit_factor_label = ttk.Label(metrics_frame, text="Profit Factor: ")
+        self.profit_factor_label.grid(row=1, column=0, padx=5, pady=2)
+        self.profit_factor_value = ttk.Label(metrics_frame, text="0")
+        self.profit_factor_value.grid(row=1, column=1, padx=5, pady=2)
         
-        # Market search
-        ttk.Label(sidebar, text="Market Search", style='Dashboard.TLabel').pack()
-        self.market_search = ttk.Entry(sidebar)
-        self.market_search.pack(fill='x', pady=2)
-        self.market_search.bind('<KeyRelease>', self.filter_markets)
+        return metrics_frame
+
+    def create_regime_indicator(self):
+        regime_frame = ttk.LabelFrame(self.dashboard_frame, text="Market Regime")
+        regime_frame.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
         
-        # Market list
-        self.market_listbox = tk.Listbox(sidebar, bg='#2C2C2C', fg='white', height=20)
-        self.market_listbox.pack(fill='both', expand=True)
-        self.market_listbox.bind('<<ListboxSelect>>', self.on_market_select)
+        self.regime_label = ttk.Label(regime_frame, text="Current Regime: ")
+        self.regime_label.grid(row=0, column=0, padx=5, pady=2)
+        self.regime_value = ttk.Label(regime_frame, text="Unknown")
+        self.regime_value.grid(row=0, column=1, padx=5, pady=2)
         
-        # Favorites section
-        ttk.Label(sidebar, text="Favorites", style='Dashboard.TLabel').pack(pady=(10,2))
-        self.favorites_listbox = tk.Listbox(sidebar, bg='#2C2C2C', fg='white', height=10)
-        self.favorites_listbox.pack(fill='x')
+        return regime_frame
+
+    def create_journal_display(self):
+        journal_frame = ttk.LabelFrame(self.dashboard_frame, text="Trade Journal")
+        journal_frame.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         
-        # Favorites controls
-        controls = ttk.Frame(sidebar, style='Dashboard.TFrame')
-        controls.pack(fill='x')
-        ttk.Button(controls, text="Add", command=self.add_to_favorites).pack(side='left', padx=2)
-        ttk.Button(controls, text="Remove", command=self.remove_from_favorites).pack(side='right', padx=2)
+        # Create Treeview for trade history
+        columns = ('Time', 'Market', 'Type', 'Entry', 'Exit', 'PnL', 'Risk/Reward')
+        self.trade_tree = ttk.Treeview(journal_frame, columns=columns, show='headings')
         
-    def create_center_panel(self):
-        center = ttk.Frame(self.master, style='Dashboard.TFrame')
-        center.grid(row=1, column=1, sticky='nsew', padx=5, pady=5)
-        
-        # Price chart
-        fig = mpf.figure(style='charles')
-        self.chart_canvas = FigureCanvasTkAgg(fig, master=center)
-        self.chart_canvas.get_tk_widget().pack(fill='both', expand=True)
-        
-        # Technical indicators
-        indicators = ttk.Frame(center, style='Dashboard.TFrame')
-        indicators.pack(fill='x')
-        self.rsi_label = ttk.Label(indicators, text="RSI: --", style='Dashboard.TLabel')
-        self.rsi_label.pack(side='left', padx=5)
-        self.macd_label = ttk.Label(indicators, text="MACD: --", style='Dashboard.TLabel')
-        self.macd_label.pack(side='left', padx=5)
-        
-    def create_right_panel(self):
-        right = ttk.Frame(self.master, style='Dashboard.TFrame')
-        right.grid(row=1, column=2, sticky='nsew', padx=5, pady=5)
-        
-        # Signals panel
-        signals = ttk.LabelFrame(right, text="Active Signals")
-        signals.pack(fill='x', padx=5, pady=5)
-        
-        columns = ('Time', 'Market', 'Type', 'Price', 'Action')
-        self.signals_tree = ttk.Treeview(signals, columns=columns, show='headings', height=10)
+        # Set column headings
         for col in columns:
-            self.signals_tree.heading(col, text=col)
-        self.signals_tree.pack(fill='x')
+            self.trade_tree.heading(col, text=col)
+            self.trade_tree.column(col, width=100)
         
-        # Alerts panel
-        alerts = ttk.LabelFrame(right, text="Alerts")
-        alerts.pack(fill='x', padx=5, pady=5)
-        self.alerts_text = tk.Text(alerts, height=10, bg='#2C2C2C', fg='white')
-        self.alerts_text.pack(fill='x')
+        self.trade_tree.grid(row=0, column=0, sticky='nsew')
         
-    def create_bottom_panel(self):
-        bottom = ttk.Frame(self.master, style='Dashboard.TFrame')
-        bottom.grid(row=2, column=0, columnspan=3, sticky='ew', padx=5, pady=5)
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(journal_frame, orient='vertical', command=self.trade_tree.yview)
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        self.trade_tree.configure(yscrollcommand=scrollbar.set)
         
-        # Performance metrics
-        self.win_rate_label = ttk.Label(bottom, text="Win Rate: --", style='Dashboard.TLabel')
-        self.win_rate_label.pack(side='left', padx=10)
+        return journal_frame
+
+    def create_risk_panel(self):
+        risk_frame = ttk.LabelFrame(self.dashboard_frame, text="Risk Metrics")
+        risk_frame.grid(row=1, column=2, padx=5, pady=5, sticky='nsew')
         
-        self.profit_factor_label = ttk.Label(bottom, text="Profit Factor: --", style='Dashboard.TLabel')
-        self.profit_factor_label.pack(side='left', padx=10)
+        # Position Size
+        self.position_size_label = ttk.Label(risk_frame, text="Position Size: ")
+        self.position_size_label.grid(row=0, column=0, padx=5, pady=2)
+        self.position_size_value = ttk.Label(risk_frame, text="0")
+        self.position_size_value.grid(row=0, column=1, padx=5, pady=2)
         
-        # Export buttons
-        ttk.Button(bottom, text="Export Data", command=self.export_to_excel).pack(side='right', padx=5)
-        ttk.Button(bottom, text="Export Signals", command=self.export_signals).pack(side='right', padx=5)
+        # Risk Level
+        self.risk_level_label = ttk.Label(risk_frame, text="Risk Level: ")
+        self.risk_level_label.grid(row=1, column=0, padx=5, pady=2)
+        self.risk_level_value = ttk.Label(risk_frame, text="Low")
+        self.risk_level_value.grid(row=1, column=1, padx=5, pady=2)
+        
+        return risk_frame
 
+    def update_dashboard(self):
+        metrics = self.dashboard_metrics['trade_performance']
+        self.win_rate_value.config(text=f"{metrics['win_rate']:.2f}%")
+        self.profit_factor_value.config(text=f"{metrics['profit_factor']:.2f}")
+        self.regime_value.config(text=self.dashboard_metrics['market_analysis']['regime'])
 
-    def filter_markets(self, event=None):
-        search_term = self.market_search.get().upper()
-        self.market_listbox.delete(0, tk.END)
-        markets = self.tickers()
-        filtered_markets = [market for market in markets if search_term in market]
-        for market in filtered_markets:
-            self.market_listbox.insert(tk.END, market)
-
-    def on_market_select(self, event=None):
-        selection = self.market_listbox.curselection()
-        if selection:
-            market = self.market_listbox.get(selection[0])
-            self.current_market = market
-            self.update_market_displays()
-
-    def update_market_displays(self):
-        self.update_price_chart()
-        self.update_indicators()
-        self.update_signals_display()
-
-    def update_price_chart(self):
-        if self.current_market:
-            df = self.fetch_market_data(self.current_market, self.timeframe_var.get())
-            if df is not None:
-                fig = mpf.figure(style='charles')
-                ax = fig.add_subplot(1,1,1)
-                mpf.plot(df, type='candle', style='charles', ax=ax)
-                self.chart_canvas.figure = fig
-                self.chart_canvas.draw()
-
-    def update_indicators(self):
-        if self.current_market:
-            df = self.fetch_market_data(self.current_market, self.timeframe_var.get())
-            if df is not None:
-                rsi = talib.RSI(df['close']).iloc[-1]
-                macd, signal, _ = talib.MACD(df['close'])
-                self.rsi_label.config(text=f"RSI: {rsi:.2f}")
-                self.macd_label.config(text=f"MACD: {macd.iloc[-1]:.2f}")
-
-    def update_signals_display(self):
-        for item in self.signals_tree.get_children():
-            self.signals_tree.delete(item)
-        signals = self.sql_operations('fetch', self.db_signals, 'Signals')
-        for signal in signals[-10:]:
-            self.signals_tree.insert('', 'end', values=(
-                signal['timestamp'],
-                signal['market'],
-                signal['signal_type'],
-                signal['price'],
-                'Monitor'
+    def update_journal(self):
+        # Clear existing entries
+        for item in self.trade_tree.get_children():
+            self.trade_tree.delete(item)
+        
+        # Add new entries
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals')
+        for trade in trades[-100:]:  # Show last 100 trades
+            self.trade_tree.insert('', 'end', values=(
+                trade['timestamp'],
+                trade['market'],
+                trade['signal_type'],
+                trade['price'],
+                trade.get('exit_price', ''),
+                trade.get('pnl', ''),
+                trade.get('risk_reward', '')
             ))
 
-    def add_to_favorites(self):
-        selection = self.market_listbox.curselection()
-        if selection:
-            market = self.market_listbox.get(selection[0])
-            if market not in self.get_favorites():
-                self.favorites_listbox.insert(tk.END, market)
-                self.save_favorites()
+    def update_risk_metrics(self):
+        risk_metrics = self.dashboard_metrics['risk_metrics']
+        self.position_size_value.config(text=f"{risk_metrics['position_exposure']:.2f}")
+        self.risk_level_value.config(text=risk_metrics['value_at_risk'])
+    def create_visualization_components(self):
+        viz_frame = ttk.LabelFrame(self.dashboard_frame, text="Market Visualization")
+        viz_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
+        
+        # Market Heatmap
+        self.create_market_heatmap(viz_frame)
+        
+        # Performance Charts
+        self.create_performance_charts(viz_frame)
+        
+        return viz_frame
 
-    def remove_from_favorites(self):
-        selection = self.favorites_listbox.curselection()
-        if selection:
-            self.favorites_listbox.delete(selection[0])
-            self.save_favorites()
+    def create_market_heatmap(self, parent_frame):
+        heatmap_frame = ttk.Frame(parent_frame)
+        heatmap_frame.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        
+        markets = self.selected_markets or self.change(self.choose_list.get())
+        performance_data = {market: self.calculate_market_performance(market) for market in markets}
+        
+        # Create grid of labels colored by performance
+        for i, (market, perf) in enumerate(performance_data.items()):
+            color = self.get_performance_color(perf)
+            label = tk.Label(heatmap_frame, text=f"{market}\n{perf:.2f}%",
+                            bg=color, width=15, height=2)
+            label.grid(row=i//5, column=i%5, padx=1, pady=1)
 
-    def get_favorites(self):
-        return [self.favorites_listbox.get(i) for i in range(self.favorites_listbox.size())]
+    def create_performance_charts(self, parent_frame):
+        chart_frame = ttk.Frame(parent_frame)
+        chart_frame.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
+        
+        # Win Rate Chart
+        self.create_win_rate_chart(chart_frame)
+        
+        # PnL Chart
+        self.create_pnl_chart(chart_frame)
 
-    def save_favorites(self):
-        favorites = self.get_favorites()
-        with open('config/favorites.json', 'w') as f:
-            json.dump(favorites, f)
+    def get_performance_color(self, performance):
+        if performance > 5:
+            return '#90EE90'  # Light green
+        elif performance > 0:
+            return '#98FB98'  # Pale green
+        elif performance > -5:
+            return '#FFB6C1'  # Light red
+        else:
+            return '#CD5C5C'  # Indian red
 
-    def load_favorites(self):
-        try:
-            with open('config/favorites.json', 'r') as f:
-                favorites = json.load(f)
-                for market in favorites:
-                    self.favorites_listbox.insert(tk.END, market)
-        except FileNotFoundError:
-            pass
+    def calculate_market_performance(self, market):
+        trades = self.sql_operations('fetch', self.db_signals, 'Signals', market=market)
+        if not trades:
+            return 0.0
+        
+        pnl_values = [trade.get('pnl', 0) for trade in trades]
+        return sum(pnl_values) / len(pnl_values) * 100
 
-    def add_alert(self, message):
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        self.alerts_text.insert('1.0', f"[{timestamp}] {message}\n")
-        self.alerts_text.see('1.0')
+    def schedule_updates(self):
+        if self.scanning:
+            self.update_dashboard()
+            self.update_journal()
+            self.update_risk_metrics()
+            self.master.after(5000, self.schedule_updates)  # Update every 5 seconds
 
     def start_scanning(self):
         if not self.scanning:
+            # Initialize exchange connection
+            self.binance = ccxt.binance({
+                'enableRateLimit': True,
+                'options': {'defaultType': 'spot'}
+            })
+            
             self.scanning = True
-            self.status_label.config(text="Scanner Status: Running", foreground='green')
+            self.status_label.config(text="Scanner Status: Running", fg='green')
+            
+            # Start scanning thread
             threading.Thread(target=self.scan_for_signals, daemon=True).start()
+            
+            # Notify start
+            self.send_telegram_update("🚀 Scanner Started - Monitoring Markets")
+
+
 
     def stop_scanning(self):
         self.scanning = False
-        self.status_label.config(text="Scanner Status: Stopped", foreground='red')
+        self.status_label.config(text="Scanner Status: Stopped", fg='red')
+        self.send_telegram_update("⏹️ Market Scanner Stopped")
 
-    def export_to_excel(self):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"market_data_{timestamp}.xlsx"
+    def user_choicelist(self):
+        # Set up exchange with proper API configuration
+        exchange_config = {
+            'apiKey': self.api_key,
+            'secret': self.secret_key,
+            'enableRateLimit': True,
+            'options': {
+                'defaultType': 'spot',
+                'adjustForTimeDifference': True,
+                'recvWindow': 5000
+            }
+        }
         
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        # Create exchange instance with public API access
+        self.binance = ccxt.binance({
+            'enableRateLimit': True,
+            'options': {'defaultType': 'spot'}
+        })
         
-        signals_df = pd.DataFrame(self.sql_operations('fetch', self.db_signals, 'Signals'))
-        signals_df.to_excel(writer, sheet_name='Signals', index=False)
+        # Fetch market data using public endpoints
+        def tickers(self):
+            markets = self.binance.load_markets()
+            return [market for market in markets.keys() if market.endswith('/USDT')]
         
-        if hasattr(self, 'current_market'):
-            market_data = self.fetch_market_data(self.current_market, self.timeframe_var.get())
-            if market_data is not None:
-                market_data.to_excel(writer, sheet_name='Market Data', index=True)
-        
-        writer.close()
-        self.logger.info(f"Data exported to {filename}")
-
-    def export_signals(self):
-        signals = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if signals:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"signals_{timestamp}.csv"
-            
-            df = pd.DataFrame(signals)
-            df.to_csv(filename, index=False)
-            self.logger.info(f"Signals exported to {filename}")
-
-    def update_performance_metrics(self):
-        signals = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if signals:
-            win_rate = self.calculate_win_rate()
-            profit_factor = self.calculate_profit_factor()
-            
-            self.win_rate_label.config(text=f"Win Rate: {win_rate:.1%}")
-            self.profit_factor_label.config(text=f"Profit Factor: {profit_factor:.2f}")
-
-    def calculate_win_rate(self):
-        signals = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if not signals:
-            return 0
-        successful = sum(1 for s in signals if s.get('result') == 'success')
-        return successful / len(signals)
-
-    def calculate_profit_factor(self):
-        signals = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if not signals:
-            return 0
-        wins = sum(s['profit'] for s in signals if s.get('profit', 0) > 0)
-        losses = abs(sum(s['profit'] for s in signals if s.get('profit', 0) < 0))
-        return wins / losses if losses > 0 else 0
-
-    def sql_operations(self, operation, db, table, **kwargs):
-        conn = sqlite3.connect(db)
-        c = conn.cursor()
-        
-        try:
-            if operation == 'create':
-                if table == 'userinfo':
-                    c.execute('''CREATE TABLE IF NOT EXISTS userinfo
-                                (name TEXT, key TEXT, secret TEXT, 
-                                 phrase TEXT, tel_id TEXT, tel_token TEXT)''')
-                elif table == 'Signals':
-                    c.execute('''CREATE TABLE IF NOT EXISTS Signals
-                                (market TEXT, timeframe TEXT, signal_type TEXT,
-                                 price REAL, volume_trend TEXT, vwap REAL,
-                                 rsi REAL, timestamp TEXT)''')
-                                 
-            elif operation == 'insert':
-                placeholders = ', '.join(['?' for _ in kwargs])
-                columns = ', '.join(kwargs.keys())
-                values = tuple(kwargs.values())
-                c.execute(f"INSERT INTO {table} ({columns}) VALUES ({placeholders})", values)
-                
-            elif operation == 'fetch':
-                c.execute(f"SELECT * FROM {table}")
-                columns = [description[0] for description in c.description]
-                return [dict(zip(columns, row)) for row in c.fetchall()]
-                
-            elif operation == 'delete':
-                c.execute(f"DELETE FROM {table}")
-                
-            conn.commit()
-            
-        except Exception as e:
-            self.logger.error(f"Database error: {e}")
-            
-        finally:
-            conn.close()
-
-    def setup_market_streams(self):
-        """Initialize market data streams"""
-        self.market_data = {}
-        self.active_streams = set()
-        
-        if hasattr(self, 'binance'):
-            markets = self.tickers()
-            for market in markets[:10]:  # Start with top 10 markets
-                self.start_market_stream(market)
-
-    def start_market_stream(self, market):
-        """Start streaming data for a specific market"""
-        if market not in self.active_streams:
-            self.active_streams.add(market)
-            threading.Thread(target=self.stream_market_data, 
-                          args=(market,), daemon=True).start()
-
-    def stream_market_data(self, market):
-        """Stream market data and update internal storage"""
-        while self.scanning and market in self.active_streams:
-            try:
-                ticker = self.binance.fetch_ticker(market)
-                self.market_data[market] = {
-                    'price': float(ticker['last']),
-                    'volume': float(ticker['quoteVolume']),
-                    'change': float(ticker['percentage']),
-                    'timestamp': ticker['timestamp']
-                }
-                time.sleep(1)  # Rate limiting
-            except Exception as e:
-                self.logger.error(f"Stream error for {market}: {e}")
-                time.sleep(5)  # Error cooldown
-
-    def cleanup(self):
-        """Cleanup resources before exit"""
-        self.scanning = False
-        self.active_streams.clear()
-        if hasattr(self, 'binance'):
-            self.binance.close()
-
-    def run(self):
-        """Main application loop"""
-        try:
-            self.master.mainloop()
-        except Exception as e:
-            self.logger.error(f"Application error: {e}")
-        finally:
-            self.cleanup()
-
-    def on_closing(self):
-        """Handle window closing event"""
-        self.cleanup()
-        self.master.destroy()
-
-    def initialize_exchange(self):
-        """Initialize exchange connection with proper configuration"""
-        try:
-            self.binance = ccxt.binance({
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'spot',
-                    'adjustForTimeDifference': True,
-                    'recvWindow': 5000
-                },
-                'timeout': 30000
-            })
-            
-            # Load markets
-            self.binance.load_markets()
-            self.logger.info("Exchange connection initialized")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Exchange initialization error: {e}")
-            return False
-
-
-    def cleanup(self):
-        """Enhanced cleanup with proper checks"""
-        self.scanning = False
-        
-        if hasattr(self, 'active_streams'):
-            self.active_streams.clear()
-            
-        if hasattr(self, 'binance'):
-            try:
-                # Proper way to close ccxt exchange
-                if isinstance(self.binance, ccxt.binance):
-                    self.binance = None
-                self.logger.info("Exchange connection closed successfully")
-            except Exception as e:
-                self.logger.error(f"Error closing exchange connection: {e}")
-                
-        if hasattr(self, 'save_favorites'):
-            self.save_favorites()
-            
-        if hasattr(self, 'db_connect'):
-            self.sql_operations('close', self.db_connect, None)
+        total_list = self.tickers()
+        insi = MarketApp(self, total_list)
+        insi.run_choiceApp()
 
     def tickers(self):
-        """Fetch available market tickers"""
+        asset = "USDT"
+        tickers = self.binance.fetch_tickers()
+        filtered_symbols = [symbol for symbol in tickers if symbol.endswith(f"/{asset}")]
+        filtered_s = []
+
+        for market in filtered_symbols:
+            try:
+                usdt_volume = float(tickers[market]['baseVolume']) * float(tickers[market]['last'])
+                filtered_s.append((market, usdt_volume))
+            except Exception as e:
+                continue
+
+        sorted_symbols = sorted(filtered_s, key=lambda symbol: symbol[1], reverse=True)
+        sorted_markets = [symbol[0] for symbol in sorted_symbols]
+        return sorted_markets
+
+
+    def change(self, param=None):
+        asset = 'USDT'
         try:
-            markets = self.binance.fetch_tickers()
-            return [m for m in markets.keys() if m.endswith('USDT')]
+            tickers = self.binance.fetch_tickers()
+            tic = pd.DataFrame(tickers).transpose()
+            
+            # Filter only pairs ending with USDT, not starting with it
+            tic = tic[tic.index.str.endswith(f"/{asset}") & ~tic.index.str.startswith(f"{asset}/")]
+            
+            df = tic.drop(['vwap', 'askVolume', 'previousClose', 'symbol', 'timestamp', 
+                        'info', 'quoteVolume', 'datetime', 'bidVolume'], axis=1)
+            
+            if param == 'Best-vol':
+                df['volch'] = df['baseVolume'] * df['last']
+                df = df[df['volch'] > 10000]
+                df = df.sort_values('volch', ascending=False)
+                return df.head(100).index.tolist()
+                
+            elif param == 'Last-vol':
+                df['volch'] = df['baseVolume'] * df['last']
+                df = df.sort_values('volch', ascending=False)
+                return df.head(50).index.tolist()
+                
+            elif param == 'Top':
+                df = df.sort_values('percentage', ascending=False)
+                return df.head(100).index.tolist()
+                
+            elif param == 'Down':
+                df = df.sort_values('percentage', ascending=True)
+                return df.head(100).index.tolist()
+
         except Exception as e:
-            self.logger.error(f"Error fetching tickers: {e}")
+            self.logger.error(f"Error in change method: {e}")
             return []
 
-    def update_market_overview(self):
-        if hasattr(self, 'current_market'):
-            try:
-                ticker = self.binance.fetch_ticker(self.current_market)
-                
-                # Update price label
-                price = float(ticker['last'])
-                self.price_label.configure(text=f"Price: {price:.8f}")
-                
-                # Update 24h change
-                change = float(ticker['percentage'])
-                color = 'green' if change > 0 else 'red'
-                self.change_label.configure(text=f"24h Change: {change:.2f}%", foreground=color)
-                
-                # Update volume
-                volume = float(ticker['quoteVolume'])
-                self.volume_label.configure(text=f"Volume: {volume:,.0f} USDT")
-                
-            except Exception as e:
-                self.logger.error(f"Market overview update error: {e}")
+  
 
-    def update_performance_dashboard(self):
-        signals = self.sql_operations('fetch', self.db_signals, 'Signals')
-        if signals:
-            # Calculate metrics
-            total_signals = len(signals)
-            win_rate = self.calculate_win_rate()
-            profit_factor = self.calculate_profit_factor()
-            
-            # Update labels
-            self.signals_count_label.configure(text=f"Total Signals: {total_signals}")
-            self.win_rate_label.configure(text=f"Win Rate: {win_rate:.1%}")
-            self.profit_factor_label.configure(text=f"Profit Factor: {profit_factor:.2f}")
 
-    def check_rate_limit(self):
-        """Check and handle API rate limits"""
-        current_time = time.time()
-        if current_time - self.rate_limits['last_reset'] >= self.rate_limits['cooldown_period']:
-            self.rate_limits['api_calls'] = 0
-            self.rate_limits['last_reset'] = current_time
-        
-        if self.rate_limits['api_calls'] >= self.rate_limits['max_calls_per_minute']:
-            sleep_time = self.rate_limits['cooldown_period'] - (current_time - self.rate_limits['last_reset'])
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            self.rate_limits['api_calls'] = 0
-            self.rate_limits['last_reset'] = time.time()
-        
-        self.rate_limits['api_calls'] += 1
-
-    def update_gui(self):
-        """Update all GUI components"""
-        if self.scanning:
-            self.update_market_overview()
-            self.update_signals_display()
-            self.update_performance_dashboard()
-            self.master.after(1000, self.update_gui)
-
-    def validate_signal(self, signal):
-        """Validate signal against multiple criteria"""
-        if not signal:
-            return False
-            
-        # Volume validation
-        volume_valid = self.validate_volume(signal['market'])
-        
-        # Price action validation
-        price_valid = self.validate_price_action(signal['market'])
-        
-        # Technical validation
-        tech_valid = self.validate_technical_indicators(signal['market'])
-        
-        return all([volume_valid, price_valid, tech_valid])
-
-    def validate_volume(self, market):
-        """Check if volume meets minimum requirements"""
+    def analyze_market(self, market, timeframe):
         try:
-            ticker = self.binance.fetch_ticker(market)
-            volume = float(ticker['quoteVolume'])
-            return volume >= 1000000  # Minimum 1M USDT volume
-        except Exception as e:
-            self.logger.error(f"Volume validation error: {e}")
-            return False
-
-    def validate_price_action(self, market):
-        """Validate price action patterns"""
-        df = self.fetch_market_data(market, '1h')
-        if df is not None:
-            # Check for strong candlestick patterns
-            last_candle = df.iloc[-1]
-            prev_candle = df.iloc[-2]
-            
-            # Bullish engulfing
-            if (last_candle['close'] > last_candle['open'] and
-                prev_candle['close'] < prev_candle['open'] and
-                last_candle['close'] > prev_candle['open'] and
-                last_candle['open'] < prev_candle['close']):
-                return True
+            df = self.fetch_market_data(market, timeframe)
+            if df is not None and not df.empty:
+                # Calculate technical indicators
+                df['rsi'] = talib.RSI(df['close'])
+                df['macd'], df['macd_signal'], df['macd_hist'] = talib.MACD(df['close'])
+                df['ema_20'] = talib.EMA(df['close'], timeperiod=20)
+                df['ema_50'] = talib.EMA(df['close'], timeperiod=50)
                 
-            # Other patterns can be added here
-            
-        return False
+                # Volume analysis
+                volume_profile = self.analyze_volume_profile(df)
+                
+                # Generate signals
+                signals = self.generate_signals(df)
+                
+                # Add volume context to signals
+                if volume_profile and signals:
+                    for signal in signals:
+                        signal['volume_context'] = volume_profile['volume_trend']
+                        signal['vwap'] = volume_profile['vwap']
+                
+                if signals:
+                    for signal in signals:
+                        # Enhanced message with more context
+                        message = (
+                            f"🔔 Signal Alert!\n"
+                            f"Market: {market}\n"
+                            f"Signal: {signal['type']}\n"
+                            f"Price: {signal['price']}\n"
+                            f"VWAP: {signal.get('vwap', 'N/A')}\n"
+                            f"Volume Trend: {signal.get('volume_context', 'N/A')}\n"
+                            f"RSI: {df['rsi'].iloc[-1]:.2f}\n"
+                            f"Timeframe: {timeframe}"
+                        )
+                        self.send_telegram_update(message)
+                        
+                        # Store enhanced signal data
+                        self.sql_operations('insert', self.db_signals, 'Signals',
+                                        market=market,
+                                        timeframe=timeframe,
+                                        signal_type=signal['type'],
+                                        price=signal['price'],
+                                        volume_trend=signal.get('volume_context', ''),
+                                        vwap=signal.get('vwap', 0.0),
+                                        rsi=df['rsi'].iloc[-1],
+                                        timestamp=str(datetime.now()))
+                        
+        except Exception as e:
+            self.logger.error(f"Error analyzing market {market}: {e}")
 
-    def validate_technical_indicators(self, market):
-        """Validate technical indicators"""
-        df = self.fetch_market_data(market, '1h')
-        if df is not None:
-            # Calculate indicators
-            rsi = talib.RSI(df['close']).iloc[-1]
-            macd, signal, _ = talib.MACD(df['close'])
-            
-            # Define conditions
-            rsi_oversold = rsi < 30
-            macd_bullish = macd.iloc[-1] > signal.iloc[-1]
-            
-            return rsi_oversold or macd_bullish
-            
-        return False
 
+    def monitor_price_action(self):
+        while self.scanning:
+            for market in self.selected_markets:
+                df = self.fetch_market_data(market, self.choose_time.get())
+                if self.detect_signal(df):
+                    self.process_signal(market, df)
+            time.sleep(self.rate_config['window'])
+
+    def filter_markets(self, markets):
+        filtered = []
+        for market in markets:
+            df = self.fetch_market_data(market, self.choose_time.get())
+            if df is not None:
+                volume = df['volume'].mean()
+                volatility = df['close'].pct_change().std()
+                
+                if volume > self.min_volume and volatility > self.min_volatility:
+                    filtered.append(market)
+        return filtered
 def main():
     root = tk.Tk()
-    root.protocol("WM_DELETE_WINDOW", lambda: ScannerGUI(root).on_closing())
     app = ScannerGUI(root)
-    app.run()
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
-
