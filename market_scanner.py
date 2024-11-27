@@ -29,16 +29,18 @@ class MarketScanner(BaseScanner):
             'stop_levels': {},
             'active_signals': set()
         }
-
     def scan_for_signals(self):
         while self.scanning:
             try:
                 self.check_rate_limit()
+                self.logger.info("Starting market scan cycle")
 
                 if self.user_choice.get() == 0:
                     markets = self.change(self.choose_list.get())
+                    self.logger.info(f"Scanning {len(markets)} markets from auto-selection")
                 else:
                     markets = self.selected_markets
+                    self.logger.info(f"Scanning {len(markets)} manually selected markets")
 
                 for market in markets:
                     if not self.scanning:
@@ -48,21 +50,17 @@ class MarketScanner(BaseScanner):
                     df = self.fetch_market_data(market, timeframe)
 
                     if df is not None and not df.empty:
-                        # Technical indicators calculation
+                        self.logger.info(f"Analyzing {market} on {timeframe} timeframe")
+                        
                         df = self.calculate_technical_indicators(df)
+                        key_levels = self.analyze_key_levels(df)
                         
-                        # Generate base signals
                         signals = self.generate_signals(df)
-                        
-                        # VSA and volume analysis
                         vsa_signals = self.analyze_vsa_signals(df)
                         volume_patterns = self.analyze_volume_patterns(df)
-                        
-                        # Pattern recognition
                         pattern_signals = self.analyze_pattern_sequence(df)
                         divergence_signals = self.detect_divergences(df)
                         
-                        # Combine all base signals
                         all_base_signals = []
                         all_base_signals.extend(signals)
                         all_base_signals.extend(vsa_signals)
@@ -70,38 +68,50 @@ class MarketScanner(BaseScanner):
                         all_base_signals.extend(pattern_signals)
                         all_base_signals.extend(divergence_signals)
 
-                        # Validate and filter signals
-                        validated_signals = self.validate_signals_with_trailing(all_base_signals, market)
-                        filtered_signals = self.filter_signals(validated_signals, market)
+                        signal_count = len(all_base_signals)
+                        dots = self.get_signal_dots(signal_count)
+                        self.logger.info(f"Found {signal_count} initial signals for {market} {dots}")
 
-                        # Special strategy signals
-                        htf_wick_signal = self.detect_htf_support_wick(market)
-                        drop_recovery_signal = self.detect_support_drop_recovery(market)
-                        range_breakout_signal = self.detect_range_breakout_wick(market)
+                        strong_signals = []
+                        for signal in all_base_signals:
+                            signal['key_levels'] = key_levels
+                            strength_validation = self.validate_strong_buy(signal, df, key_levels, market)
+                            
+                            if strength_validation['is_strong_buy']:
+                                signal['strength'] = 'STRONG'
+                                signal['confirmation_score'] = strength_validation['strength_score']
+                                signal['confirmation_factors'] = strength_validation['confirmation_factors']
+                                strong_signals.append(signal)
 
-                        # Combine all signals
-                        all_signals = []
-                        if filtered_signals:
-                            all_signals.extend(filtered_signals)
-                        if htf_wick_signal:
-                            all_signals.append(htf_wick_signal)
-                        if drop_recovery_signal:
-                            all_signals.append(drop_recovery_signal)
-                        if range_breakout_signal:
-                            all_signals.append(range_breakout_signal)
+                        if strong_signals:
+                            self.logger.info(f"Found {len(strong_signals)} strong signals for {market}")
+                            validated_signals = self.validate_signals_with_trailing(strong_signals, market)
+                            filtered_signals = self.filter_signals(validated_signals, market)
 
-                        # Process signals
-                        if all_signals:
-                            # Add market regime analysis
-                            market_regime = self.analyze_market_regime(df)
-                            for signal in all_signals:
-                                signal['market_regime'] = market_regime
-                                signal['volume_profile'] = self.analyze_volume_profile(df)
+                            htf_wick_signal = self.detect_htf_support_wick(market)
+                            drop_recovery_signal = self.detect_support_drop_recovery(market)
+                            range_breakout_signal = self.detect_range_breakout_wick(market)
 
-                            # Process and store signals
-                            self.process_signals(market, timeframe, all_signals)
-                            self.store_signals_db(all_signals, market, timeframe)
-                            self.update_trailing_stops(market, df['close'].iloc[-1])
+                            all_signals = []
+                            if filtered_signals:
+                                all_signals.extend(filtered_signals)
+                            if htf_wick_signal:
+                                all_signals.append(htf_wick_signal)
+                            if drop_recovery_signal:
+                                all_signals.append(drop_recovery_signal)
+                            if range_breakout_signal:
+                                all_signals.append(range_breakout_signal)
+
+                            if all_signals:
+                                self.logger.info(f"Processing {len(all_signals)} final signals for {market}")
+                                market_regime = self.analyze_market_regime(df)
+                                for signal in all_signals:
+                                    signal['market_regime'] = market_regime
+                                    signal['volume_profile'] = self.analyze_volume_profile(df)
+
+                                self.process_signals(market, timeframe, all_signals)
+                                self.store_signals_db(all_signals, market, timeframe)
+                                self.update_trailing_stops(market, df['close'].iloc[-1])
 
                     time.sleep(0.1)
 
@@ -109,19 +119,19 @@ class MarketScanner(BaseScanner):
                 self.logger.error(f"Scanning error: {e}")
                 time.sleep(5)
 
-
     def validate_signals_with_trailing(self, signals, market):
         validated = []
         try:
-            current_price = float(self.binance.fetch_ticker(market)['last'])
+            # Convert market symbol format
+            symbol = market.replace('/', '')
+            current_price = float(self.binance.fetch_ticker(symbol)['last'])
             
             for signal in signals:
-                # Initialize trailing stop if not exists
                 if market not in self.trailing_data['stop_levels']:
                     self.trailing_data['stop_levels'][market] = current_price * 0.99
                 
                 # Volume validation
-                ticker = self.binance.fetch_ticker(market)
+                ticker = self.binance.fetch_ticker(symbol)
                 volume = float(ticker['quoteVolume'])
                 
                 if volume >= self.signal_config['min_volume']:
@@ -134,6 +144,7 @@ class MarketScanner(BaseScanner):
         except Exception as e:
             self.logger.error(f"Signal validation error: {e}")
             return []
+
 
     def filter_signals(self, signals, market):
         filtered = []
@@ -346,6 +357,151 @@ class MarketScanner(BaseScanner):
             'volume_ratio': volume_ratio.iloc[-1],
             'volume_sma': volume_sma.iloc[-1]
         }
+    def analyze_key_levels(self, df):
+        # Enhanced volume analysis at support/resistance
+        volume_profile = {
+            'support_volume': df['volume'].rolling(20).mean().iloc[-1],
+            'resistance_volume': df['volume'].rolling(20).max().iloc[-1],
+            'volume_surge': (df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] * 2)
+        }
+        
+        # Candle close analysis near support
+        latest_candle = df.iloc[-1]
+        range_size = latest_candle['high'] - latest_candle['low']
+        
+        candle_quality = {
+            'close_to_support': (abs(latest_candle['close'] - latest_candle['low']) /
+                            (range_size if range_size > 0 else 1)) < 0.2,
+            'strong_rejection': (latest_candle['high'] - latest_candle['close'] <
+                            latest_candle['close'] - latest_candle['low']),
+            'volume_confirmation': (latest_candle['volume'] >
+                                df['volume'].rolling(20).mean().iloc[-1] * 1.5)
+        }
+        
+        return {
+            'volume_profile': volume_profile,
+            'candle_quality': candle_quality,
+            'support_strength': all(candle_quality.values())
+        }
+
+    def validate_strong_buy(self, signal, df, key_levels, market):
+        # Volume confirmation with enhanced criteria
+        volume_strength = (
+            key_levels['volume_profile']['volume_surge'] and
+            key_levels['candle_quality']['volume_confirmation']
+        )
+        
+        # Price action confirmation using existing quality metrics
+        price_strength = (
+            key_levels['candle_quality']['close_to_support'] and
+            key_levels['candle_quality']['strong_rejection']
+        )
+        
+        # Support level strength using multiple timeframe confirmation
+        support_test = (
+            key_levels['support_strength'] and
+            self.multiple_timeframe_support(market)
+        )
+        
+        # Calculate weighted strength score
+        strength_score = (
+            volume_strength * 0.4 +
+            price_strength * 0.4 +
+            support_test * 0.2
+        )
+        
+        return {
+            'is_strong_buy': strength_score >= 0.6,
+            'strength_score': strength_score,
+            'confirmation_factors': {
+                'volume': volume_strength,
+                'price_action': price_strength,
+                'support': support_test
+            }
+        }
+
+    def validate_strong_buy(self, signal, df, key_levels, market):
+        # Volume confirmation - made more lenient
+        volume_strength = (
+            df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] * 1.5  # Reduced from 2x to 1.5x
+        )
+        
+        # Price action confirmation - more flexible conditions
+        price_strength = (
+            key_levels['candle_quality']['close_to_support'] or 
+            key_levels['candle_quality']['strong_rejection']
+        )
+        
+        # Support level strength - simplified
+        support_test = self.is_at_support(df)
+        
+        # Calculate strength score
+        strength_score = sum([
+            volume_strength * 0.4,
+            price_strength * 0.4,
+            support_test * 0.2
+        ])
+        
+        # More lenient strong buy condition
+        is_strong = strength_score >= 0.6  # Reduced from implicit 1.0
+        
+        return {
+            'is_strong_buy': is_strong,
+            'strength_score': strength_score,
+            'confirmation_factors': {
+                'volume': volume_strength,
+                'price_action': price_strength,
+                'support': support_test
+            }
+        }
+
+    def is_at_support(self, df):
+        latest_candle = df.iloc[-1]
+        support_level = df['low'].rolling(20).min().iloc[-1]
+        return abs(latest_candle['low'] - support_level) / support_level < 0.002
+
+    def multiple_timeframe_support(self, market):
+        timeframes = ['15m', '1h', '4h']
+        support_count = 0
+        for tf in timeframes:
+            df = self.fetch_market_data(market, tf)
+            if df is not None and self.is_at_support(df):
+                support_count += 1
+        return support_count >= 2
+
+    def validate_strong_buy(self, signal, df, key_levels, market):  # Added market parameter
+        # Volume confirmation
+        volume_strength = (
+            df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] * 2 and
+            key_levels['volume_profile']['volume_surge']
+        )
+        
+        # Price action confirmation
+        price_strength = (
+            key_levels['candle_quality']['close_to_support'] and
+            key_levels['candle_quality']['strong_rejection']
+        )
+        
+        # Support level strength
+        support_test = (
+            self.is_at_support(df) and
+            self.multiple_timeframe_support(market)  # Now market is defined
+        )
+        
+        return {
+            'is_strong_buy': volume_strength and price_strength and support_test,
+            'strength_score': sum([volume_strength, price_strength, support_test]) / 3,
+            'confirmation_factors': {
+                'volume': volume_strength,
+                'price_action': price_strength,
+                'support': support_test
+            }
+        }
+    def get_signal_dots(self, signal_count):
+        if signal_count <= 4:
+            return "🟢" * signal_count
+        else:
+            return "🟣" * (signal_count - 3)  # Purple dots for excess signals
 
     def analyze_market_regime(self, df):
         regime_data = {
@@ -730,14 +886,36 @@ class MarketScanner(BaseScanner):
             self.logger.error(f"Data fetch error for {market}: {e}")
             return None
     def classify_trading_style(self, signal_data, timeframe):
-        # Day trading timeframes
         day_trading_timeframes = ['1m', '5m', '15m', '30m', '1h']
+        swing_trading_timeframes = ['4h', '1d', '1w']
         
-        is_day_trade = timeframe in day_trading_timeframes
+        if timeframe in day_trading_timeframes:
+            signal_data['trading_style'] = 'Day Trade 📈'
+            signal_data['position_holding'] = '1-8 hours'
+        else:
+            signal_data['trading_style'] = 'Swing Trade 🌊'
+            signal_data['position_holding'] = '1-7 days'
         
-        # Add trading style to signal data
-        signal_data['trading_style'] = 'Day Trade 📈' if is_day_trade else 'Swing Trade 🌊'
         return signal_data
+    def validate_timeframe_strategy(self, signal, timeframe):
+        if timeframe in ['1m', '5m', '15m']:
+            return signal['type'] in ['VSA_COMPRESSION', 'RANGE_BREAKOUT_WICK']
+        elif timeframe in ['1h', '4h']:
+            return signal['type'] in ['HTF_SUPPORT_WICK', 'DOUBLE_BOTTOM', 'TRIPLE_BOTTOM']
+        else:
+            return signal['type'] in ['SUPPORT_DROP_RECOVERY', 'CUP_AND_HANDLE']
+
+    def calculate_strategy_risk(self, signal, timeframe):
+        if signal['trading_style'] == 'Day Trade 📈':
+            return {
+                'stop_loss': 0.5,  # 0.5% for day trades
+                'take_profit': 1.5  # 1.5% for day trades
+            }
+        else:
+            return {
+                'stop_loss': 2.0,  # 2% for swing trades
+                'take_profit': 6.0  # 6% for swing trades
+            }
     def generate_signals(self, df):
         signals = []
         try:
@@ -791,21 +969,49 @@ class MarketScanner(BaseScanner):
             self.logger.error(f"Error generating signals: {e}")
             return []
 
+
     def process_signals(self, market, timeframe, signals):
         for signal in signals:
             try:
+                # Classify trading style and calculate additional metrics
                 signal = self.classify_trading_style(signal, timeframe)
                 risk_level = self.calculate_risk_level(signal)
                 
+                # Get technical levels
                 df = self.fetch_market_data(market, timeframe)
                 vwap_data = self.calculate_vwap_levels(df)
                 pivot_points = self.calculate_pivot_points(df)
                 fib_levels = self.calculate_fibonacci_levels(df)
                 
+                # Check for high volume wick
+                wick_signal = self.detect_high_volume_wick(market, df)
+                if wick_signal:
+                    signals.append(wick_signal)
+                
+                # Log signal detection
                 self.logger.info(f"New signal detected for {market}: {signal['type']}")
+                
+                # Store in database
                 self.store_signals_db([signal], market, timeframe)
-
-                if signal['type'] == 'HTF_SUPPORT_WICK':
+                
+                # Construct enhanced message based on signal type
+                if signal['type'] == 'HIGH_VOLUME_WICK':
+                    message = (
+                        f"🕐 {signal['trading_style']}\n"
+                        f"High Volume Wick Signal\n"
+                        f"Market: {market}\n"
+                        f"Time: {signal['time']}\n"
+                        f"Price: {signal['price']:.8f}\n"
+                        f"Upper Wick Ratio: {signal['upper_wick_ratio']:.2f}\n"
+                        f"Lower Wick Ratio: {signal['lower_wick_ratio']:.2f}\n"
+                        f"Volume: {signal['volume_ratio']:.2f}x average\n"
+                        f"Strength: {signal['strength']}\n"
+                        f"Risk Level: {risk_level}\n"
+                        f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}\n"
+                        f"Next Support: {pivot_points['s1']:.8f}"
+                    )
+                
+                elif signal['type'] == 'HTF_SUPPORT_WICK':
                     message = (
                         f"🎯 {signal['trading_style']}\n"
                         f"HTF Support Wick Signal\n"
@@ -819,7 +1025,7 @@ class MarketScanner(BaseScanner):
                         f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}\n"
                         f"Next Pivot: {pivot_points['r1']:.8f}"
                     )
-
+                
                 elif signal['type'] == 'SUPPORT_DROP_RECOVERY':
                     message = (
                         f"📊 {signal['trading_style']}\n"
@@ -833,7 +1039,7 @@ class MarketScanner(BaseScanner):
                         f"Risk Level: {risk_level}\n"
                         f"Fib Level: {fib_levels['level_618']:.8f}"
                     )
-
+                
                 elif signal['type'] == 'RANGE_BREAKOUT_WICK':
                     message = (
                         f"⚡ {signal['trading_style']}\n"
@@ -850,7 +1056,7 @@ class MarketScanner(BaseScanner):
                         f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}\n"
                         f"Next Resistance: {pivot_points['r1']:.8f}"
                     )
-
+                
                 elif signal['type'] == 'VSA_COMPRESSION':
                     message = (
                         f"📊 {signal['trading_style']}\n"
@@ -863,7 +1069,7 @@ class MarketScanner(BaseScanner):
                         f"Risk Level: {risk_level}\n"
                         f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}"
                     )
-
+                
                 elif signal['type'] in ['double_bottom', 'DOUBLE_BOTTOM', 'TRIPLE_BOTTOM']:
                     message = (
                         f"📈 {signal['trading_style']}\n"
@@ -876,7 +1082,7 @@ class MarketScanner(BaseScanner):
                         f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}\n"
                         f"Fib Target: {fib_levels['level_618']:.8f}"
                     )
-
+                
                 elif signal['type'] == 'CUP_AND_HANDLE':
                     message = (
                         f"☕ {signal['trading_style']}\n"
@@ -888,7 +1094,7 @@ class MarketScanner(BaseScanner):
                         f"Risk Level: {risk_level}\n"
                         f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}"
                     )
-
+                
                 elif signal['type'] == 'BULLISH_DIVERGENCE':
                     message = (
                         f"↗️ {signal['trading_style']}\n"
@@ -900,7 +1106,7 @@ class MarketScanner(BaseScanner):
                         f"Risk Level: {risk_level}\n"
                         f"VWAP: {vwap_data['vwap'].iloc[-1]:.8f}"
                     )
-
+                
                 else:
                     message = (
                         f"🔔 {signal['trading_style']}\n"
@@ -916,15 +1122,15 @@ class MarketScanner(BaseScanner):
                         f"S1: {pivot_points['s1']:.8f}\n"
                         f"Volume Profile: {signal.get('volume_context', 'N/A')}"
                     )
-
+                
+                # Send telegram notification
                 if self.tel_id and self.bot_token:
                     self.logger.info(f"Sending signal notification for {market}")
                     self.send_telegram_update(message)
                     self.logger.info(f"Signal notification sent for {market}")
-
+                    
             except Exception as e:
                 self.logger.error(f"Signal processing error for {market}: {e}")
-
 
     def calculate_risk_level(self, signal):
         risk_score = 0
@@ -1164,6 +1370,76 @@ class MarketScanner(BaseScanner):
         df['resistance'] = df['high'].rolling(window=20).max()
         
         return patterns
+    def filter_by_volume(self, market):
+        try:
+            ticker = self.binance.fetch_ticker(market.replace('/', ''))
+            volume_usd = float(ticker['quoteVolume'])
+            return volume_usd > 1000000  # $1M minimum volume
+        except Exception as e:
+            self.logger.error(f"Volume filter error: {e}")
+            return False
+
+    def validate_trend_strength(self, df):
+        try:
+            adx = talib.ADX(df['high'], df['low'], df['close'])
+            rsi = talib.RSI(df['close'])
+            trend_strength = adx.iloc[-1]
+            rsi_value = rsi.iloc[-1]
+            return trend_strength > 25 and (rsi_value < 30 or rsi_value > 70)
+        except Exception as e:
+            self.logger.error(f"Trend validation error: {e}")
+            return False
+
+    def check_signal_cooldown(self, market):
+        current_time = time.time()
+        if not hasattr(self, 'last_signal_time'):
+            self.last_signal_time = {}
+        if market in self.last_signal_time:
+            if current_time - self.last_signal_time[market] < 3600:
+                return False
+        self.last_signal_time[market] = current_time
+        return True
+
+    def confirm_multiple_timeframes(self, market):
+        timeframes = ['15m', '1h', '4h']
+        confirmations = 0
+        for tf in timeframes:
+            df = self.fetch_market_data(market, tf)
+            if df is not None and self.validate_trend_strength(df):
+                confirmations += 1
+        return confirmations >= 2
+
+    def detect_high_volume_wick(self, market, df):
+        try:
+            current_candle = df.iloc[-1]
+            
+            # Calculate wick sizes
+            upper_wick = current_candle['high'] - max(current_candle['open'], current_candle['close'])
+            lower_wick = min(current_candle['open'], current_candle['close']) - current_candle['low']
+            
+            # Calculate wick ratios
+            candle_body = abs(current_candle['close'] - current_candle['open'])
+            upper_wick_ratio = upper_wick / candle_body if candle_body != 0 else 0
+            lower_wick_ratio = lower_wick / candle_body if candle_body != 0 else 0
+            
+            # Volume analysis
+            volume_ratio = current_candle['volume'] / df['volume'].rolling(20).mean().iloc[-1]
+            
+            # Signal conditions
+            if volume_ratio > 2.0 and (upper_wick_ratio > 1.5 or lower_wick_ratio > 1.5):
+                return {
+                    'type': 'HIGH_VOLUME_WICK',
+                    'price': current_candle['close'],
+                    'strength': 'strong' if volume_ratio > 3.0 else 'moderate',
+                    'score': 0.9 if volume_ratio > 3.0 else 0.7,
+                    'upper_wick_ratio': upper_wick_ratio,
+                    'lower_wick_ratio': lower_wick_ratio,
+                    'volume_ratio': volume_ratio,
+                    'time': pd.to_datetime(current_candle['timestamp']).strftime('%H:%M UTC')
+                }
+        except Exception as e:
+            self.logger.error(f"High volume wick detection error: {e}")
+        return None
 
     def calculate_atr(self, symbol, tf):
         df = self.data(symbol, tf, limit=14)
