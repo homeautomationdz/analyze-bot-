@@ -72,6 +72,11 @@ class MarketScanner(BaseScanner):
                         dots = self.get_signal_dots(signal_count)
                         self.logger.info(f"Found {signal_count} initial signals for {market} {dots}")
 
+                        # Store signals with 3+ dots in history
+                        if signal_count >= 3:
+                            self.store_signal_history(market, signal_count, dots)
+                            self.send_signal_notification(market, signal_count, dots)
+
                         strong_signals = []
                         for signal in all_base_signals:
                             signal['key_levels'] = key_levels
@@ -383,7 +388,157 @@ class MarketScanner(BaseScanner):
             'candle_quality': candle_quality,
             'support_strength': all(candle_quality.values())
         }
+    def store_signal_history(self, market, signal_count, dots):
+        import sqlite3
+        from datetime import datetime, timedelta
+        
+        current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+        
+        try:
+            conn = sqlite3.connect(self.db_signals)
+            cursor = conn.cursor()
+            
+            # Create historical signals table with hourly tracking
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS signal_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    market TEXT,
+                    signal_count INTEGER,
+                    dots TEXT,
+                    hour_timestamp DATETIME,
+                    occurrence_count INTEGER DEFAULT 1,
+                    UNIQUE(market, hour_timestamp)
+                )
+            """)
+            
+            # Update or insert hourly signal
+            cursor.execute("""
+                INSERT INTO signal_history (market, signal_count, dots, hour_timestamp)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(market, hour_timestamp) 
+                DO UPDATE SET occurrence_count = occurrence_count + 1
+            """, (market, signal_count, dots, current_hour))
+            
+            # Get hourly statistics
+            cursor.execute("""
+                SELECT hour_timestamp, occurrence_count 
+                FROM signal_history 
+                WHERE market = ? AND hour_timestamp >= ?
+                ORDER BY hour_timestamp DESC
+            """, (market, current_hour - timedelta(hours=24)))
+            
+            hourly_stats = cursor.fetchall()
+            
+            conn.commit()
+            
+            # Log hourly statistics
+            if hourly_stats:
+                stats_msg = f"Hourly occurrences for {market}:\n"
+                for hour, count in hourly_stats:
+                    stats_msg += f"Hour {hour}: {count} times\n"
+                self.logger.info(stats_msg)
+                
+        except Exception as e:
+            self.logger.error(f"Error storing signal history: {e}")
+        finally:
+            if conn:
+                conn.close()
+    def get_last_signal_price(self, market):
+        import sqlite3
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_signals)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT price FROM signal_history 
+                WHERE market = ? 
+                ORDER BY hour_timestamp DESC 
+                LIMIT 1
+            """, (market,))
+            result = cursor.fetchone()
+            if conn:
+                conn.close()
+            return result[0] if result else None
+        except Exception as e:
+            self.logger.error(f"Error getting last signal price: {e}")
+            if conn:
+                conn.close()
+            return None
 
+    def get_historical_matches(self, market, current_dots):
+        import sqlite3
+        from datetime import datetime, timedelta
+        
+        matches = []
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_signals)
+            cursor = conn.cursor()
+            
+            current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+            five_days_ago = current_hour - timedelta(days=5)
+            
+            cursor.execute("""
+                SELECT dots, hour_timestamp, occurrence_count 
+                FROM signal_history 
+                WHERE market = ? AND hour_timestamp >= ?
+                ORDER BY hour_timestamp DESC
+            """, (market, five_days_ago))
+            
+            results = cursor.fetchall()
+            
+            for dots, timestamp, count in results:
+                hours_ago = int((current_hour - datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')).total_seconds() / 3600)
+                if hours_ago > 0:
+                    matches.append({
+                        'hours_ago': hours_ago,
+                        'dots': dots,
+                        'count': count
+                    })
+                    
+        except Exception as e:
+            self.logger.error(f"Error getting historical matches: {e}")
+        finally:
+            if conn:
+                conn.close()
+        
+        return matches
+
+    def send_signal_notification(self, market, signal_count, dots):
+        if signal_count >= 4 or '🟣' in dots:
+            try:
+                # Get market data
+                ticker = self.binance.fetch_ticker(market)
+                current_price = ticker['last']
+                
+                # Get timeframe change
+                timeframe = self.choose_time.get()
+                tf_data = self.fetch_market_data(market, timeframe)
+                tf_change = ((current_price - tf_data['open'].iloc[0]) / tf_data['open'].iloc[0]) * 100
+                
+                # Historical matches
+                historical = self.get_historical_matches(market, dots)
+                history_text = ""
+                for match in historical:
+                    hours = match['hours_ago']
+                    count = match['count']
+                    history_text += f"\nH{hours}: {count}x {match['dots']}"
+                
+                message = (
+                    f"💎 High-Quality Signal\n"
+                    f"Market: {market}\n"
+                    f"Current Signals: {dots}\n"
+                    f"Price: {current_price:.8f}\n"
+                    f"{timeframe} Change: {tf_change:.2f}%\n"
+                    f"Historical Matches:{history_text}\n"
+                    f"Time: {datetime.now().strftime('%H:%M:%S')}"
+                )
+                
+                if self.tel_id and self.bot_token:
+                    self.send_telegram_update(message)
+                
+            except Exception as e:
+                self.logger.error(f"Error sending notification for {market}: {e}")
     def validate_strong_buy(self, signal, df, key_levels, market):
         # Volume confirmation with enhanced criteria
         volume_strength = (
